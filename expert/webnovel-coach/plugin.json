@@ -1,0 +1,23 @@
+{
+  "name": "webnovel-coach",
+  "version": "1.0.1",
+  "private": true,
+  "description": "长篇网文写作搭档：按「取任务书 → 写 → 自审 → 提交事实增量」的闭环陪你写长篇，靠 MCP 记住所有设定。",
+  "author": { "name": "webnovel-mcp contributors" },
+  "license": "MIT",
+  "meta": {
+    "title": "长篇网文写作搭档",
+    "description": "写长篇也不忘设定：动笔前取写作任务书，写完提交事实增量，盯住伏笔、时间线与节奏。"
+  },
+  "dsh": {
+    "catalog": {
+      "category": "content",
+      "summary": {
+        "zh": "长篇网文写作搭档：写作任务书 + 章节提交链 + 伏笔台账 + 节奏体检 + 一致性审查。",
+        "en": "Long-form web-novel writing partner: writing brief, chapter commit chain, foreshadowing ledger, pacing check, consistency review."
+      },
+      "capabilities": ["prompt"]
+    }
+  },
+  "files": ["agents", "README.md"]
+}

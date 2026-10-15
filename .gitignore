@@ -1,0 +1,9 @@
+books/
+logs/
+node_modules/
+config.env
+.deploy-tmp.tgz
+*.log
+*.corrupt
+.DS_Store
+Thumbs.db
