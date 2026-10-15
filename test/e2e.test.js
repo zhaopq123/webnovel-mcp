@@ -573,7 +573,8 @@ test('E2E · 节奏：从未出现过的线显示「未出现」，不写「N �
   assert.equal(report.lastSeen.quest, 3, '主线最后出现在第 3 章');
 
   const md = renderPacingMarkdown(report);
-  const fireRow = md.split('\n').find((l) => l.includes('感情线'));
+  // 只看表格行：告警里也会提到「感情线」，用 includes 会先抓到告警那句。
+  const fireRow = md.split('\n').find((l) => l.startsWith('|') && l.includes('感情线'));
   assert.match(fireRow, /未出现/, `从未出现应写「未出现」。实际：${fireRow}`);
 });
 
@@ -918,4 +919,47 @@ test('E2E · 定位：找不到项目时报可读错误', async () => {
       return true;
     },
   );
+});
+
+test('E2E · 节奏：开局三章全是主线时就该警告，不等 20 章', async () => {
+  const root = newProject();
+  for (let c = 1; c <= 3; c += 1) {
+    await commitChapter(root, { chapter: c, title: `第${c}章`, summary: `第 ${c} 章摘要`, strand: 'quest', force: true });
+  }
+  const report = analyzePacing(root);
+  const skew = report.alerts.find((a) => a.level === 'warning');
+  assert.ok(skew, `三章同线、另两线从未出现，必须出告警（旧版这里报「无明显节奏问题」）。实际：${JSON.stringify(report.alerts)}`);
+  assert.match(skew.message, /从未出现/);
+  assert.doesNotMatch(renderPacingMarkdown(report), /无明显节奏问题/, '有告警时不许再印绿灯标题');
+});
+
+test('E2E · 审查：单章字数不足本书章均目标七成时要拦', () => {
+  const root = newProject(); // 100 万字 / 400 章 → 章均 2500
+  // 「林越握住门框。」= 6 汉字 + 1 标点 = 7 字；200 遍 = 1400 字，低于 2500×0.7=1750。
+  const thin = '林越握住门框。'.repeat(200) + '可他真正想问的是，那个人究竟是谁。';
+  const review = reviewChapter(root, 1, { text: thin });
+  assert.ok(review.words < 1750, `构造用例本身要够短，实际 ${review.words} 字`);
+  assert.ok(
+    review.issues.some((i) => /不足本书章均目标/.test(i.message)),
+    `1400 字对 2500 字章均必须报短章。实际：${JSON.stringify(review.issues.map((i) => i.message))}`,
+  );
+
+  // 320 遍 = 2240 字，已过七成线，不该再报。
+  const ok = '林越握住门框。'.repeat(320) + '可他真正想问的是，那个人究竟是谁。';
+  const fine = reviewChapter(root, 2, { text: ok });
+  assert.ok(!fine.issues.some((i) => /不足本书章均目标/.test(i.message)), `达标章节不该被报短。实际 ${fine.words} 字`);
+});
+
+test('E2E · 审查：场景没切换时不再误报「开头没交代地点」', async () => {
+  const root = newProject();
+  const body = '门外的声音很稳，不像喝醉的人。林越把门拉开一条缝，走廊里坏了一盏灯。';
+  await commitChapter(root, { chapter: 1, title: '第一章', summary: '深夜有人上门。', strand: 'quest', force: true, ending: { time: '当晚', location: '出租屋' } });
+  await commitChapter(root, { chapter: 2, title: '第二章', summary: '门外来人。', strand: 'quest', force: true, ending: { time: '当晚', location: '出租屋' } });
+  const same = reviewChapter(root, 2, { text: body });
+  assert.ok(!same.issues.some((i) => i.dimension === 'continuity'), `同一场戏接着演，不该要求开头交代地点。实际：${JSON.stringify(same.issues.map((i) => i.message))}`);
+
+  // 真换了地方才提醒。
+  await commitChapter(root, { chapter: 3, title: '第三章', summary: '去了厂房。', strand: 'quest', force: true, ending: { time: '次日', location: '废弃厂房' } });
+  const moved = reviewChapter(root, 3, { text: body });
+  assert.ok(moved.issues.some((i) => i.dimension === 'continuity' && /上一章结束于/.test(i.message)), '场景确实切换时应提醒交代');
 });
