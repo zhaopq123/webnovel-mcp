@@ -16,7 +16,7 @@ import { initProject } from '../lib/core/project.js';
 import { findProjectRoot, assertInside } from '../lib/core/paths.js';
 import { readState, readIndex, readForeshadowing, readMemory, findChapter } from '../lib/core/state.js';
 import { buildWritingBrief } from '../lib/features/context.js';
-import { writeChapterOutline, writeVolumeOutline, writeMasterOutline, writeChapterText } from '../lib/features/outline.js';
+import { writeChapterOutline, writeVolumeOutline, writeMasterOutline, writeChapterText, writeNote } from '../lib/features/outline.js';
 import { commitChapter, listCommits, readCommit } from '../lib/features/commit.js';
 import { analyzePacing, renderPacingMarkdown } from '../lib/features/pacing.js';
 import { reviewChapter } from '../lib/features/review.js';
@@ -729,6 +729,33 @@ test('E2E · 记忆：非法类型与缺字段被拒绝', async () => {
   await assert.rejects(learnMemory(root, { kind: 'bogus', title: 't', content: 'c' }), /未知的记忆类型/);
   await assert.rejects(learnMemory(root, { kind: 'style', title: '', content: 'c' }), /需要 title/);
   await assert.rejects(learnMemory(root, { kind: 'style', title: 't', content: '' }), /需要 content/);
+});
+
+test('E2E · 手记：write_note 落盘、同日追加、日期校验', () => {
+  const root = newProject();
+  const first = writeNote(root, '## 当日手记（2026-10-16）\n- 本章：第 1 章', '2026-10-16');
+  assert.equal(first.path, '手记/2026-10-16.md');
+  assert.equal(first.appended, false);
+
+  const second = writeNote(root, '- 补一条：查重通过', '2026-10-16');
+  assert.equal(second.appended, true);
+
+  const content = fs.readFileSync(path.join(root, '手记', '2026-10-16.md'), 'utf8');
+  assert.match(content, /本章：第 1 章/);
+  assert.match(content, /补一条：查重通过/);
+  assert.match(content, /\n---\n/);
+
+  // 缺省日期 = 今天（本地时区，不是 UTC——UTC+8 凌晨会落到前一天）
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  writeNote(root, '默认日期测试');
+  assert.ok(fs.existsSync(path.join(root, '手记', `${today}.md`)));
+
+  // 非法日期硬拒绝（防路径穿越）
+  assert.throws(() => writeNote(root, 'x', '2026/10/16'), /YYYY-MM-DD/);
+  assert.throws(() => writeNote(root, 'x', '../../etc/passwd'), /YYYY-MM-DD/);
+  assert.throws(() => writeNote(root, '   '), /需要提供 text/);
 });
 
 /* ------------------------------------------------------------------ *

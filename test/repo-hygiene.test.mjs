@@ -98,7 +98,7 @@ test('版本号只有一个真相源', async () => {
   const { SERVER_INFO } = await import(pathToFileURL(path.join(ROOT, 'mcp', 'protocol.mjs')).href);
   const changelog = readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
   const expert = JSON.parse(
-    readFileSync(path.join(ROOT, 'expert', 'webnovel-coach', 'plugin.json'), 'utf8'),
+    readFileSync(path.join(ROOT, 'expert', 'webnovel-coach', '.codebuddy-plugin', 'plugin.json'), 'utf8'),
   );
 
   const top = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/m);

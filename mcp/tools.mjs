@@ -17,7 +17,7 @@ import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
 import {
-  writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText,
+  writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText,
 } from '../lib/features/outline.js';
 import { toInt, countWords, wrapTitle } from '../lib/util.js';
@@ -328,13 +328,14 @@ export const TOOL_DEFS = [
   tool(
     'webnovel_outline',
     '读写大纲与正文，按 action 分派：write_master（写总纲）、write_volume（写第 N 卷卷纲）、'
-      + 'write_chapter（写第 N 章章纲——写正文前必须先做这步）、write_text（保存第 N 章正文）、read（读回任意一项）。'
+      + 'write_chapter（写第 N 章章纲——写正文前必须先做这步）、write_text（保存第 N 章正文）、'
+      + 'write_note（当日手记落盘：追加写 手记/YYYY-MM-DD.md，date 可选）、read（读回任意一项）。'
       + '章纲是写作的前置条件：没有章纲时 webnovel_context 会返回 blocker。'
-      + '当用户说「定大纲 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章」时使用。',
+      + '当用户说「定大纲 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章 / 记下手记」时使用。',
     {
       action: {
         type: 'string',
-        enum: ['write_master', 'write_volume', 'write_chapter', 'write_text', 'read'],
+        enum: ['write_master', 'write_volume', 'write_chapter', 'write_text', 'write_note', 'read'],
         description: '要执行的动作。',
       },
       text: { type: 'string', description: '要写入的 Markdown 内容（write_* 动作必填）。' },
@@ -342,6 +343,7 @@ export const TOOL_DEFS = [
       volume: { type: 'number', description: '卷号（write_volume 时用）。' },
       title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名。' },
       chapterRange: { type: 'string', description: '卷的章节范围，例如 "1-100"（write_volume 时可选）。' },
+      date: { type: 'string', description: '手记日期，YYYY-MM-DD（write_note 时可选，缺省今天）。' },
       scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text'], description: 'read 动作读哪一项。' },
     },
     ['action'],
@@ -389,7 +391,12 @@ export const TOOL_DEFS = [
         const r = writeChapterText(dir, args.chapter, args.title, content);
         return `已保存正文：${r.path}（${countWords(content)} 字）\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
       }
-      throw new Error(`未知的 action：${action}。可用：write_master / write_volume / write_chapter / write_text / read`);
+      if (action === 'write_note') {
+        const r = writeNote(dir, content, args.date);
+        return `已${r.appended ? '追加' : '写入'}当日手记：${r.path}（${r.bytes} 字节）`
+          + '\n\n无人值守日更的验收凭据：每章跑完必须落盘一份，作者凭它终审。';
+      }
+      throw new Error(`未知的 action：${action}。可用：write_master / write_volume / write_chapter / write_text / write_note / read`);
     },
   ),
 
