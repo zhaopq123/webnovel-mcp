@@ -71,10 +71,10 @@ async function main() {
     if (r.body.result.serverInfo.name !== 'webnovel-mcp') throw new Error('serverInfo 不对');
   });
 
-  await check('tools/list 返回 10 个工具', async () => {
+  await check('tools/list 返回 11 个工具', async () => {
     const r = await rpc('tools/list', {});
     const tools = r.body.result.tools;
-    if (tools.length !== 10) throw new Error(`实际 ${tools.length} 个`);
+    if (tools.length !== 11) throw new Error(`实际 ${tools.length} 个`);
     const json = JSON.stringify(tools.map((t) => t.inputSchema));
     for (const banned of ['anyOf', 'oneOf', '$ref']) {
       if (json.includes(banned)) throw new Error(`schema 含 ${banned}`);

@@ -10,6 +10,7 @@ export const TOOL_NAMES = [
   'webnovel_pacing',
   'webnovel_review',
   'webnovel_memory',
+  'webnovel_doctor',
 ];
 
 export default TOOL_NAMES;

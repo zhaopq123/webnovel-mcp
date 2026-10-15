@@ -107,6 +107,31 @@ test('E2E · 建项目：骨架完整且可重复执行', () => {
   );
 });
 
+test('E2E · 重复 init：机器态与已写记忆原样保留，显式传值才更新元信息', async () => {
+  const root = newProject();
+  await commitChapter(root, {
+    chapter: 1, summary: 's1', strand: 'quest', wordCount: 100,
+    deltas: { protagonist: { name: '林越' }, foreshadowing: { planted: [{ name: '玉佩' }] } },
+  });
+  await learnMemory(root, { kind: 'style', title: '短句', content: '打斗用短句。' });
+  const before = JSON.parse(fs.readFileSync(path.join(root, '.webnovel/project.json'), 'utf8'));
+
+  const again = initProject(root, {});
+  assert.equal(again.existed, true);
+  assert.equal(readState(root).value.progress.currentChapter, 1, '进度不许被重置');
+  assert.equal(readState(root).value.protagonist.name, '林越', '状态卡不许被清空');
+  assert.equal(readIndex(root).value.chapters.length, 1, '索引不许被清空');
+  assert.equal(readForeshadowing(root).value.items.length, 1, '伏笔台账不许被清空');
+  assert.equal(readMemory(root).value.entries.length, 1, '写作记忆不许被清空');
+  const after = JSON.parse(fs.readFileSync(path.join(root, '.webnovel/project.json'), 'utf8'));
+  assert.equal(after.title, before.title, '没传 title 不许改名');
+  assert.equal(after.createdAt, before.createdAt, 'createdAt 不许被重置');
+
+  const renamed = initProject(root, { title: '新名字' });
+  assert.equal(renamed.meta.title, '新名字', '显式传的新值应生效');
+  assert.equal(readIndex(root).value.chapters.length, 1, '改名也不许碰机器态');
+});
+
 /* ------------------------------------------------------------------ *
  * 2. 护栏：没有章纲不许裸写
  * ------------------------------------------------------------------ */

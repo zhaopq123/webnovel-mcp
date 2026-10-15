@@ -2,11 +2,15 @@
 /**
  * 场景验收（产品视角）：验证「长篇不崩」这个核心承诺是否真的成立。
  *
- * 跑的是作者真实会遇到的三件事：
+ * 跑的是作者真实会遇到的事：
  *   1. 第 1 章把主角写伤 + 埋伏笔 → 第 2 章任务书必须自动带上伤势和伏笔
  *   2. 第 2 章到点不回收伏笔 → 系统必须报「已到期未回收」
  *   3. 第 3 章写出「断手还握剑」→ 审查必须抓出来
- *   4. 重复 init 不许覆盖已经写好的正文
+ *   4. 重复 init 不许覆盖已经写好的正文（v1.1.0 起机器态与元信息也不许被动）
+ *   5. 状态尾：工具返回末尾必须带最新状态行（无插件客户端的防忘主通道）
+ *   6. 审查门禁：有未处理 🔴 的章提交必须被拒；修稿重审后放行
+ *   7. 旧章重提默认阻断；force 进入历史修正模式并明说
+ *   8. doctor 体检对账全绿；rebuild 未确认被拒、确认后重建成功
  *
  * 用法：node scripts/scenario-check.mjs <url> [token] [--book=<id>]
  */
@@ -51,6 +55,14 @@ async function call(name, a) {
   return text;
 }
 
+/** 调用并预期失败：返回的文本必须命中 re。 */
+async function expectFail(name, a, re, what) {
+  const r = await rpc('tools/call', { name, arguments: a });
+  const text = r.content?.[0]?.text ?? '';
+  if (!r.isError) throw new Error(`${what}应被拒绝，但它成功了：${text.slice(0, 200)}`);
+  if (!re.test(text)) throw new Error(`${what}的拒绝理由未命中 ${re}：\n      ${text.slice(0, 300)}`);
+}
+
 async function step(title, fn) {
   try {
     await fn();
@@ -72,6 +84,7 @@ const mustNot = (text, re, what) => {
 const CH1 = '林越推开铁门。指尖传来震颤。不是风，是这扇门在说话。他挖出母亲留下的铁盒，盒盖割破了指腹。';
 const CH2_OK = '林越左手提着灯，慢慢走进巷子。右臂还吊着，一动就疼。他想起母亲留下的铁盒。';
 const CH3_BAD = '林越双手握剑，剑势如虹，一招劈开对方的防御。他的右手稳稳压住剑柄，纹丝不动。';
+const CH3_OK = '林越靠着墙根往前走，右臂依旧吊在胸前，一动就疼。他用左手攥紧铁盒的边角，码头的灯在雾里一盏盏亮起来。';
 
 async function main() {
   console.log(`\n=== 场景验收：长篇不崩 ===\n目标: ${url}\n测试书: ${bookId}\n`);
@@ -81,7 +94,7 @@ async function main() {
   });
 
   await step('写总纲 + 第一卷卷纲', async () => {
-    await call('webnovel_outline', { bookId, action: 'write_master', text: '# 总纲\n少年听物寻母。' });
+    await call('webnovel_outline', { bookId, action: 'write_master', text: '# 总纲\n少年偶得异术，踏上寻亲之路。' });
     must(await call('webnovel_outline', { bookId, action: 'write_volume', volume: 1, title: '旧城', chapterRange: '1-100', text: '# 第一卷 旧城\n起承转合…' }), /已保存第 1 卷/, '卷纲');
   });
 
@@ -163,6 +176,77 @@ async function main() {
 
   await step('全文检索能找到正文里的细节', async () => {
     must(await call('webnovel_query', { bookId, kind: 'search', query: '铁盒' }), /铁盒/, '全文检索');
+  });
+
+  const FOOTER = new RegExp(`（书：${bookId}｜`);
+
+  await step('状态尾：工具返回末尾带最新状态行（无插件客户端防忘主通道）', async () => {
+    const t = await call('webnovel_status', { bookId });
+    const idx = t.lastIndexOf('（书：');
+    const tail = idx >= 0 ? t.slice(idx) : '';
+    must(tail, FOOTER, '状态尾');
+    must(tail, /右臂骨裂/, '状态尾里的主角伤势');
+  });
+
+  await step('审查门禁：第 3 章还留着严重问题 → 提交必须被拒', async () => {
+    await expectFail('webnovel_commit', {
+      bookId, chapter: 3, title: '遭遇', summary: '林越在码头与黑衣人交手。', strand: 'quest',
+    }, /审查未过/, '带未处理严重问题的提交');
+  });
+
+  await step('修稿重审后放行：第 3 章按合规稿提交成功', async () => {
+    await call('webnovel_outline', { bookId, action: 'write_text', chapter: 3, title: '遭遇', text: CH3_OK });
+    const rv = await call('webnovel_review', { bookId, chapter: 3 });
+    mustNot(rv, /🔴/, '合规稿审查');
+    const t = await call('webnovel_commit', {
+      bookId, chapter: 3, title: '遭遇', summary: '林越左手提灯摸进码头，右臂仍未复原。', strand: 'quest',
+      ending: { time: '深夜', location: '码头' },
+      deltas: {
+        protagonist: { location: '码头' },
+        timeline: { time: '深夜', location: '码头', event: '摸进码头找黑衣人' },
+      },
+    });
+    must(t, /已提交第 3 章/, '提交');
+  });
+
+  await step('旧章重提默认阻断：第 1 章早于进度 → 拒收并指路 force', async () => {
+    await expectFail('webnovel_commit', {
+      bookId, chapter: 1, summary: '试图重提旧章。',
+    }, /早于当前进度/, '旧章重提');
+  });
+
+  await step('force 历史修正：账目零改动、摘要可更正、伏笔不回退', async () => {
+    const t = await call('webnovel_commit', {
+      bookId, chapter: 1, title: '旧宅', force: true,
+      summary: '林越在旧宅听见门的记忆，挖出母亲留下的铁盒（修正版摘要）。',
+    });
+    must(t, /已提交第 1 章/, '修正提交');
+    must(t, /历史修正模式/, '修正模式说明');
+    must(await call('webnovel_query', { bookId, kind: 'foreshadowing' }), /母亲留下的玉佩/, '伏笔台账未被回退');
+    const st = await call('webnovel_status', { bookId });
+    must(st, /码头/, '主角位置未被回退');
+    must(st, /右臂骨裂/, '主角伤势未被回退');
+  });
+
+  await step('doctor 体检：修正后账目 / 文件 / 重放全部对上（bug 回归防线）', async () => {
+    const t = await call('webnovel_doctor', { bookId });
+    must(t, /体检报告/, '体检报告');
+    must(t, /✅ 结论/, '体检结论');
+    mustNot(t, /🔴/, '体检报告');
+    must(t, FOOTER, '体检状态尾');
+  });
+
+  await step('doctor rebuild：未确认被拒 → 确认后重放重建成功且记忆不受影响', async () => {
+    await expectFail('webnovel_doctor', { bookId, action: 'rebuild' }, /confirm=true/, '未确认的重建');
+    const t = await call('webnovel_doctor', { bookId, action: 'rebuild', confirm: true });
+    must(t, /已从提交链重建机器态/, '重建');
+    must(t, /不受影响/, '重建边界说明');
+    const after = await call('webnovel_doctor', { bookId });
+    must(after, /✅ 结论/, '重建后复检');
+    mustNot(after, /🔴/, '重建后复检');
+    const st = await call('webnovel_status', { bookId });
+    must(st, /码头/, '重建后主角位置（纯靠重放恢复）');
+    must(st, /右臂骨裂/, '重建后主角伤势（纯靠重放恢复）');
   });
 
   console.log(lines.join('\n'));

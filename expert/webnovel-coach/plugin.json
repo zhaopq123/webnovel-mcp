@@ -1,6 +1,6 @@
 {
   "name": "webnovel-coach",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "description": "长篇网文写作搭档：按「取任务书 → 写 → 自审 → 提交事实增量」的闭环陪你写长篇，靠 MCP 记住所有设定。",
   "author": { "name": "webnovel-mcp contributors" },

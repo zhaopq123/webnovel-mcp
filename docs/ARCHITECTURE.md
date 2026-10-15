@@ -10,9 +10,9 @@
 server.mjs            HTTP / stdio 入口（node:http，零依赖）
 mcp/protocol.mjs      JSON-RPC 分发（initialize/tools/prompts/ping + 版本协商）
 mcp/prompts.mjs       6 个写作流程提示词（复用 mcp/skills-src.mjs）
-mcp/tools.mjs         10 个 MCP 工具 + 书库定位与路径守卫
+mcp/tools.mjs         11 个 MCP 工具 + 书库定位与路径守卫
 mcp/tool-names.mjs    工具名清单（契约测试的基准）
-lib/features/         领域逻辑：context / commit / query / pacing / review / memory / status / outline
+lib/features/         领域逻辑：context / commit / query / pacing / review / memory / status / outline / doctor
 lib/core/             存储（原子写+锁+迁移）、状态读写、项目骨架、路径守卫
 lib/util.js           纯函数
 ```
@@ -59,13 +59,17 @@ bookId → /^[_A-Za-z0-9\u4e00-\u9fa5][-\w\u4e00-\u9fa5]{0,63}$/   # 中英文�
 
 ```
 真源（人写）      设定集/ 大纲/ 正文/          → 随时可改、可 git
-投影（机器算）    .webnovel/{state,index,foreshadowing,memory}/  → 删了可从正文重提
+投影（机器算）    .webnovel/{state,index,foreshadowing,memory,reviews}/  → 删了可从提交链重建
 审计（只增不改）  .webnovel/commits/chNNNN.json
 ```
 
 写作闭环：`webnovel_context`（按章组装任务书：章纲/前情/主角状态/角色/到期伏笔/
-时间线/节奏/沉淀经验/硬约束）→ 写正文 → `webnovel_review`（六维一致性）→
-`webnovel_commit`（把本章事实增量写进投影层）。
+时间线/节奏/沉淀经验/硬约束）→ 写正文 → `webnovel_review`（六维一致性，结果落盘为
+审查记录）→ `webnovel_commit`（凭审查记录放行，把本章事实增量写进投影层）。
+
+**提交链是唯一事实来源**：每条记录的 `deltas` 是「该章累计生效的全部事实」
+（重提合并、修正延续），`webnovel_doctor` 把链完整重放后与现役机器态逐项对账——
+重放与实时提交共用同一核心（`commit.js` 的 `applyChapterFacts`），两边永不漂移。
 
 ## 5. 部署形态
 
@@ -95,8 +99,11 @@ $PREFIX/bin/ubuntu-autostart      开机自启登记（幂等）
 |---|---|---|
 | 单元 | `test/util.test.js` `test/store.test.js` `test/state.test.js` | 纯函数、原子写、锁、路径守卫、状态归一化 |
 | 端到端 | `test/e2e.test.js` | 建书→章纲→任务书→正文→审查→提交→查询全链路 + 安全边界 |
-| 协议 | `test/protocol.test.mjs` | 真起 HTTP 服务走 MCP：握手、工具清单、通知、错误码、鉴权、并发、符号链接 |
+| 协议 | `test/protocol.test.mjs` | 真起 HTTP 服务走 MCP：握手、工具清单、通知、错误码、鉴权、并发、符号链接、状态尾 |
 | 契约 | `test/contract.test.mjs` | 工具名/ schema / bookId 规则 / 提示词引用 四者不许脱节 |
+| 护栏 | `test/guard.test.mjs` | 旧章重提防护、审查落盘与提交门禁（含 force 逃生门与留痕） |
+| 体检 | `test/doctor.test.mjs` | 提交链重放对账、重建（确认门/备份/空链拒绝）、修正记录可重放 |
+| 自足 | `test/selfcontained.test.mjs` `test/stdio.test.mjs` | 对外文案零测试书泄露、描述自足性、裸客户端 stdio 全流程 |
 | 黑盒 | `scripts/live-check.mjs` `scenario-check.mjs` `robustness-check.mjs` | 对**已部署实例**以真实客户端身份跑：写作闭环、场景不崩、长文/并发/多书 |
 
 ## 7. 已知限制

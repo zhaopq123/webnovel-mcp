@@ -14,7 +14,8 @@ import { runQuery } from '../lib/features/query.js';
 import { analyzePacing, renderPacingMarkdown } from '../lib/features/pacing.js';
 import { reviewChapter } from '../lib/features/review.js';
 import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
-import { projectStatus } from '../lib/features/status.js';
+import { projectStatus, compactStatusLine } from '../lib/features/status.js';
+import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText,
   readMaster, readVolume, readChapter, readChapterText,
@@ -41,6 +42,8 @@ export function loadConfig(env = process.env) {
     port: Number(env.WEBNOVEL_PORT || 8400),
     bind: String(env.WEBNOVEL_BIND || '0.0.0.0').trim(),
     maxBody: Number.isFinite(rawMax) && rawMax > 0 ? rawMax : DEFAULT_MAX_BODY,
+    // 'off' = 工具返回末尾只留书 id（省 token）；默认 'full' = 附带最新状态行（L0 防忘主通道）
+    footer: String(env.WEBNOVEL_STATUS_FOOTER ?? '').trim().toLowerCase() === 'off' ? 'off' : 'full',
   };
 }
 
@@ -78,7 +81,7 @@ export function resolveBookId(config, bookId) {
     const ids = listBookIds(config);
     if (ids.length === 1) return ids[0];
     if (ids.length === 0) {
-      throw new Error('书库里还没有任何书。先用 webnovel_init 建一本（bookId 用中英文短名，例如 tingwu 或 听物）。');
+      throw new Error('书库里还没有任何书。先用 webnovel_init 建一本（bookId 用中英文短名，例如 changye 或 长夜行）。');
     }
     throw new Error(`书库里有多本书，请指定 bookId：${ids.join(' / ')}`);
   }
@@ -128,7 +131,44 @@ function tool(name, description, properties, required, handler) {
   };
 }
 
-const bookLine = (id) => `（书：${id}）`;
+/**
+ * 书行：工具返回末尾的状态尾巴。
+ *
+ * 这是 L0（无系统提示钩子的客户端）防忘机制的主通道——每轮工具返回都带上
+ * 「书名+进度+主角状态+到期伏笔」，模型即使没有任何插件能力也忘不掉。
+ * - light=true（如 webnovel_context）：只留书 id，避免与任务书里的状态重复
+ * - WEBNOVEL_STATUS_FOOTER=off：全局退回「（书：id）」（省 token）
+ * - 任何读取失败都降级为「（书：id）」——不许拖垮工具调用本身
+ */
+const bookLine = (config, id, dir, light = false) => {
+  const bare = `（书：${id}）`;
+  if (light || config?.footer === 'off') return bare;
+  try {
+    const line = compactStatusLine(dir);
+    return line ? `（书：${id}｜${line}）` : bare;
+  } catch {
+    return bare;
+  }
+};
+
+/**
+ * initialize 的开场白（辅助通道）：书库恰好只有一本书时，把最新状态写进
+ * instructions——会话级快照，会随书写变旧，真正防忘靠每次工具返回的 footer。
+ * 多书/空库/异常一律返回 null（基础铁律文案原样保留）。
+ */
+export function statusPreamble(config) {
+  if (config?.footer === 'off') return null;
+  try {
+    const ids = listBookIds(config);
+    if (ids.length !== 1) return null;
+    const id = ids[0];
+    const line = compactStatusLine(path.join(config.booksRoot, id));
+    if (!line) return null;
+    return `\n\n当前书库只有一本书（bookId=${id}，调用工具时可省略 bookId）：${line}。每次工具返回末尾都会附带这行最新状态，写作时以它为准。`;
+  } catch {
+    return null;
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * commit 参数容错
@@ -177,9 +217,10 @@ export const TOOL_DEFS = [
     'webnovel_init',
     '创建或补全一本书的目录骨架（设定集/大纲/正文 + .webnovel 机器态）并写入项目元信息。'
       + '当用户说「开一本新书 / 新建小说 / 帮我建个项目 / 我想写一本 XX 类型的小说」时使用。'
-      + '已存在的书会补全缺失文件但绝不覆盖已有内容（可安全重复执行）。返回书 ID 与创建清单。',
+      + '已存在的书只补缺失文件、绝不覆盖已有内容，机器态（状态/索引/伏笔/记忆）原样保留（可安全重复执行）；'
+      + '想改书名、目标字数等元信息，显式传新值即可更新（没传的字段保持原样）。返回书 ID 与创建清单。',
     {
-      bookId: { type: 'string', description: '书 ID：这本书在书库里的目录名，用中英文短名，例如 tingwu / 听物。不传则自动生成。' },
+      bookId: { type: 'string', description: '书 ID：这本书在书库里的目录名，用中英文短名，例如 changye / 长夜行。不传则自动生成。' },
       title: { type: 'string', description: '书名。用户没说就用「未命名作品」，之后可改。' },
       genre: { type: 'string', description: '题材，例如 都市异能 / 玄幻 / 悬疑 / 古言。' },
       genreTags: { type: 'array', items: { type: 'string' }, description: '细分标签，例如 ["都市","异能","系统流"]。' },
@@ -205,12 +246,18 @@ export const TOOL_DEFS = [
         targetWords: args.targetWords,
         targetChapters: args.targetChapters,
       });
-      return [
-        result.existed ? `已在既有书上补全骨架：${id}` : `已建好新书：${id}`,
+      const lines = [result.existed ? `已在既有书上补全骨架：${id}` : `已建好新书：${id}`];
+      if (result.existed) {
+        const patched = result.created.slice(1);
+        lines.push(patched.length > 0
+          ? `本次补全：${patched.join('、')}`
+          : '本次没有缺失项需要补全，已有内容一律未动。');
+      }
+      lines.push(
         '',
-        `书名：${String(args.title ?? '').trim() || '未命名作品'}`,
-        `题材：${String(args.genre ?? '').trim() || '未分类'}`,
-        `目标：${toInt(args.targetWords, 1_000_000)} 字 / ${toInt(args.targetChapters, 400)} 章`,
+        `书名：${result.meta.title}`,
+        `题材：${result.meta.genre}`,
+        `目标：${result.meta.targetWords} 字 / ${result.meta.targetChapters} 章`,
         '',
         '目录结构：',
         '```',
@@ -224,7 +271,8 @@ export const TOOL_DEFS = [
         '1. 用 webnovel_outline action=write_master 定总纲（或让 Agent 帮你拟）',
         '2. 再拆第一卷卷纲（action=write_volume）',
         '3. 为第 1 章写章纲（action=write_chapter），然后 webnovel_context 取任务书开写',
-      ].join('\n');
+      );
+      return lines.join('\n');
     },
   ),
 
@@ -238,7 +286,7 @@ export const TOOL_DEFS = [
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
       const status = projectStatus(dir);
-      return [...status.lines, '', bookLine(id)].join('\n');
+      return [...status.lines, '', bookLine(config, id, dir)].join('\n');
     },
   ),
 
@@ -253,7 +301,7 @@ export const TOOL_DEFS = [
       ensureBooksRoot(config);
       const ids = listBookIds(config);
       if (ids.length === 0) {
-        return '书库还是空的。用 webnovel_init 建第一本书（例如 bookId=tingwu，书名《听物》）。';
+        return '书库还是空的。用 webnovel_init 建第一本书（例如 bookId=changye，书名《长夜行》）。';
       }
       const lines = [`书库里共 ${ids.length} 本书：`, ''];
       for (const id of ids) {
@@ -325,12 +373,13 @@ export const TOOL_DEFS = [
 
       if (action === 'write_master') {
         const r = writeMasterOutline(dir, content);
-        return `已保存《${id}》总纲：${r.path}`;
+        return `已保存《${id}》总纲：${r.path}\n\n下一步：用 action=write_volume 拆第一卷卷纲。`;
       }
       if (action === 'write_volume') {
         const r = writeVolumeOutline(dir, args.volume ?? 1, content, { title: args.title, chapterRange: args.chapterRange });
         return `已保存第 ${r.volume} 卷卷纲：${r.path}`
-          + (r.registered?.chapterRange ? `（章节范围 ${r.registered.chapterRange}）` : '');
+          + (r.registered?.chapterRange ? `（章节范围 ${r.registered.chapterRange}）` : '')
+          + '\n\n下一步：用 action=write_chapter 写该卷第 1 章的章纲。';
       }
       if (action === 'write_chapter') {
         const r = writeChapterOutline(dir, args.chapter, content);
@@ -338,7 +387,7 @@ export const TOOL_DEFS = [
       }
       if (action === 'write_text') {
         const r = writeChapterText(dir, args.chapter, args.title, content);
-        return `已保存正文：${r.path}（${countWords(content)} 字）\n\n写完记得用 webnovel_commit 提交，把本章的事实变化落库。`;
+        return `已保存正文：${r.path}（${countWords(content)} 字）\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
       }
       throw new Error(`未知的 action：${action}。可用：write_master / write_volume / write_chapter / write_text / read`);
     },
@@ -356,7 +405,7 @@ export const TOOL_DEFS = [
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
       const result = buildWritingBrief(dir, args.chapter);
-      return `${result.markdown}\n\n${bookLine(id)}`;
+      return `${result.markdown}\n\n${bookLine(config, id, dir, true)}`;
     },
   ),
 
@@ -365,7 +414,11 @@ export const TOOL_DEFS = [
     '★ 写完一章后必调：把本章产生的事实变化提交落库，系统据此更新状态卡、章节索引、伏笔台账、时间线。'
       + '不提交 = 这一章发生的事不会被记住，后续章节会当作没发生过。'
       + 'deltas 里写本章的增量：主角状态变化、新角色、新地点/势力、埋下或回收的伏笔、时间线推进。'
-      + '同一章重复提交是覆盖（幂等），提交记录本身永久保留。'
+      + '提交前系统会核对本章的审查记录：还有未处理的严重问题（🔴）时会被拒绝——'
+      + '先用 webnovel_review 审一遍并按建议修改；确认要按原稿提交再传 force=true。'
+      + '重复提交同一章是覆盖（幂等）；重提早于当前进度的旧章默认被拒绝（防状态回退），'
+      + '确要修正历史章节请传 force=true（历史修正模式：deltas 会被忽略，只更新该章的索引、摘要与字数，线别沿用原值）。'
+      + '提交记录本身永久保留。'
       + '当用户说「写完了 / 提交这章 / 记下来 / 更新设定」时使用。',
     {
       chapter: { type: 'number', description: '章节号。' },
@@ -393,7 +446,11 @@ export const TOOL_DEFS = [
         description: '结尾场景，用于下一章的连贯性检查。',
       },
       wordCount: { type: 'number', description: '字数。不传则自动从正文文件统计。' },
-      force: { type: 'boolean', description: '跳过「上一章未提交」的连续性警告。' },
+      force: {
+        type: 'boolean',
+        description: '逃生门：跳过「上一章未提交」警告、旧章重提阻断与审查门禁。'
+          + '旧章重提（早于当前进度）带 force 时进入历史修正模式：deltas 全部忽略，只更新该章索引、摘要与字数（线别沿用原值）。',
+      },
       deltas: {
         type: 'object',
         description:
@@ -431,7 +488,8 @@ export const TOOL_DEFS = [
         lines.push('', '参数位置提醒（已自动处理，下次照右边写）：');
         for (const n of notes) lines.push(`- ${n}`);
       }
-      lines.push('', bookLine(id));
+      lines.push('', `下一步：用 webnovel_context chapter=${p.currentChapter + 1} 取下一章任务书。`);
+      lines.push('', bookLine(config, id, dir));
       return lines.join('\n');
     },
   ),
@@ -461,7 +519,7 @@ export const TOOL_DEFS = [
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
       const result = runQuery(dir, args.kind, args);
-      return `${result.lines.join('\n')}\n\n${bookLine(id)}`;
+      return `${result.lines.join('\n')}\n\n${bookLine(config, id, dir)}`;
     },
   ),
 
@@ -478,7 +536,7 @@ export const TOOL_DEFS = [
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
       const report = analyzePacing(dir, args);
-      return `${renderPacingMarkdown(report)}\n\n${bookLine(id)}`;
+      return `${renderPacingMarkdown(report)}\n\n${bookLine(config, id, dir)}`;
     },
   ),
 
@@ -488,7 +546,8 @@ export const TOOL_DEFS = [
       + '六个维度：设定一致性（状态冲突、境界回退、已死角色出场）、叙事连贯（与前章衔接）、'
       + '节奏（三线断档）、大纲符合度、伏笔（到期未回收/埋了没登记）、追读力（章末钩子、段落长度、对话比例）。'
       + '当用户说「检查一下这章 / 有没有问题 / 帮我审一下 / 会不会崩设定」时使用。'
-      + '若不传 text，会自动读取该章正文文件。',
+      + '若不传 text，会自动读取该章正文文件。审查结果会落盘为该章的审查记录；'
+      + '提交时凭这份记录放行——改过正文要重新审查（按文本指纹核对）。',
     {
       chapter: { type: 'number', description: '要审查的章节号。' },
       text: { type: 'string', description: '正文内容。不传则从 正文/ 目录读取该章文件。' },
@@ -497,7 +556,7 @@ export const TOOL_DEFS = [
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
       const result = reviewChapter(dir, args.chapter, { text: args.text });
-      return `${result.markdown}\n\n${bookLine(id)}`;
+      return `${result.markdown}\n\n${bookLine(config, id, dir)}`;
     },
   ),
 
@@ -529,11 +588,11 @@ export const TOOL_DEFS = [
 
       if (action === 'learn') {
         const result = await learnMemory(dir, args);
-        return `已记住【${result.kindLabel}】${result.title}\n\n累计 ${result.total} 条写作记忆，后续每章的写作任务书都会带上。${bookLine(id)}`;
+        return `已记住【${result.kindLabel}】${result.title}\n\n累计 ${result.total} 条写作记忆，后续每章的写作任务书都会带上。${bookLine(config, id, dir)}`;
       }
       if (action === 'recall') {
         const result = recallMemory(dir, args);
-        return `${result.lines.join('\n')}\n\n${bookLine(id)}`;
+        return `${result.lines.join('\n')}\n\n${bookLine(config, id, dir)}`;
       }
       if (action === 'stats') {
         const stats = memoryStats(dir);
@@ -541,9 +600,44 @@ export const TOOL_DEFS = [
         const kindLines = Object.entries(stats.byKind)
           .sort((a, b) => b[1] - a[1])
           .map(([k, n]) => `- ${MEMORY_KIND_LABEL[k] ?? k}：${n} 条`);
-        return [`写作记忆共 ${stats.total} 条：`, ...kindLines, '', bookLine(id)].join('\n');
+        return [`写作记忆共 ${stats.total} 条：`, ...kindLines, '', bookLine(config, id, dir)].join('\n');
       }
       throw new Error(`未知的 action：${action}。可用：learn / recall / stats`);
+    },
+  ),
+
+  tool(
+    'webnovel_doctor',
+    '机器态体检与重建：action=check（默认）把提交链完整重放一遍，逐项对账状态卡/索引/伏笔台账/'
+      + '正文文件/摘要文件，并扫出骨架里未填的占位符；action=rebuild 从提交链重放重建机器态'
+      + '（重建前自动备份到 .webnovel/trash/，记忆与审查记录不受影响）。'
+      + '提交链是唯一事实来源——怀疑「系统记的」和「实际写过的」对不上时用。'
+      + '当用户说「记的怎么对不上 / 状态好像不对 / 帮我校验一下记录 / 数据是不是坏了」时使用。'
+      + '注意：检查大纲/正文内容的质量用 webnovel_review，这个工具只管机器态账目。',
+    {
+      action: {
+        type: 'string',
+        enum: ['check', 'rebuild'],
+        description: 'check=只读体检（默认）/ rebuild=重放重建机器态（写操作，有备份，需 confirm=true 才会执行）。',
+      },
+      confirm: {
+        type: 'boolean',
+        description: '重建的确认门：必须显式传 true 才会真正重建（防误触）。check 不需要。',
+      },
+    },
+    [],
+    async (args, config) => {
+      const { id, dir } = requireBook(config, args.bookId);
+      const action = String(args.action ?? 'check').trim() || 'check';
+      if (action === 'check') {
+        const result = doctorCheck(dir);
+        return `${renderDoctorMarkdown(dir, result)}\n\n${bookLine(config, id, dir)}`;
+      }
+      if (action === 'rebuild') {
+        const result = await doctorRebuild(dir, { confirm: args.confirm === true });
+        return [...result.lines, '', bookLine(config, id, dir)].join('\n');
+      }
+      throw new Error(`未知的 action：${action}。可用：check / rebuild`);
     },
   ),
 ];

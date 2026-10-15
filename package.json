@@ -1,6 +1,6 @@
 {
   "name": "webnovel-mcp",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "长篇网文写作助手 · MCP 服务。写作任务书 + 章节提交链 + 伏笔台账 + 节奏体检 + 一致性审查；纯文本项目、零运行时依赖。 Long-form web-novel writing assistant as an MCP server: writing brief, chapter commit chain, foreshadowing ledger, pacing check, consistency review. Plain-text project, zero runtime dependencies.",

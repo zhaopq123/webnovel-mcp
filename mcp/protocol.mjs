@@ -5,7 +5,7 @@
  * tools / prompts 这两组稳定能力，各版本请求形状一致）；没报则回默认版本。
  */
 import { readFileSync } from 'node:fs';
-import { listTools, getTool, applyTool } from './tools.mjs';
+import { listTools, getTool, applyTool, statusPreamble } from './tools.mjs';
 import { listPrompts, getPrompt } from './prompts.mjs';
 
 // 版本只有一个真相源：package.json。写死第二份必然漂移（1.0.1 那次 CHANGELOG 已更新、
@@ -40,6 +40,7 @@ export const SERVER_INSTRUCTIONS = [
   '铁律：动笔前先用 webnovel_context 取「写作任务书」；写完用 webnovel_commit 提交本章事实增量；',
   '没有章纲时不要裸写正文（先 webnovel_outline action=write_chapter）。',
   '不确定在写哪本书时先用 webnovel_books 查看；用户问「写到哪了」用 webnovel_status。',
+  '怀疑机器态对不上账（状态/索引/伏笔可疑、记的和写过的对不上）时用 webnovel_doctor 体检。',
 ].join('');
 
 const methodNotFound = (method) => ({ error: { code: -32601, message: `Method not found: ${method}` } });
@@ -50,6 +51,9 @@ export function createDispatcher({ config, log = () => {} }) {
     switch (method) {
       case 'initialize': {
         const requested = typeof p.protocolVersion === 'string' ? p.protocolVersion.trim() : '';
+        // 双通道推送之辅助通道：书库恰好一本时把最新状态追加进开场白。
+        // 会随书写变旧，主通道是每次工具返回末尾的 bookLine。
+        const preamble = statusPreamble(config) ?? '';
         return {
           result: {
             protocolVersion: negotiateProtocol(requested),
@@ -58,7 +62,7 @@ export function createDispatcher({ config, log = () => {} }) {
               prompts: { listChanged: false },
             },
             serverInfo: SERVER_INFO,
-            instructions: SERVER_INSTRUCTIONS,
+            instructions: SERVER_INSTRUCTIONS + preamble,
           },
         };
       }

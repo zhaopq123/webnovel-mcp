@@ -124,10 +124,10 @@ async function main() {
     });
     const heroA = await call('webnovel_query', { bookId: `${prefix}a`, kind: 'status' });
     const heroB = await call('webnovel_query', { bookId: `${prefix}b`, kind: 'status' });
-    // 每本书的返回都带自己的 bookId；书名/章名也要对得上，说明没串库
-    must(heroB, new RegExp(`（书：${prefix}b）`), '乙书响应标记');
+    // 每本书的返回都带自己的 bookId（v1.1.0 起状态尾是「（书：id｜状态…）」）；书名/章名也要对得上，说明没串库
+    must(heroB, new RegExp(`（书：${prefix}b[）｜]`), '乙书响应标记');
     must(heroB, /验收乙/, '乙书书名');
-    must(heroA, new RegExp(`（书：${prefix}a）`), '甲书响应标记');
+    must(heroA, new RegExp(`（书：${prefix}a[）｜]`), '甲书响应标记');
     must(heroA, /验收甲/, '甲书书名');
     const chA = await call('webnovel_query', { bookId: `${prefix}a`, kind: 'chapter', chapter: 1 });
     must(chA, /长文测试/, '甲书第 1 章详情');

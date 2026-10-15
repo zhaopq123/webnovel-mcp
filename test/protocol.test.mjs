@@ -89,12 +89,12 @@ test('MCP · initialize 对未知协议版本回退到默认版本', async () =>
   }
 });
 
-test('MCP · tools/list 返回 10 个工具且 schema 干净', async () => {
+test('MCP · tools/list 返回 11 个工具且 schema 干净', async () => {
   const s = await start(tempConfig());
   try {
     const r = await s.rpc('tools/list', {});
     const tools = r.body.result.tools;
-    assert.equal(tools.length, 10);
+    assert.equal(tools.length, 11);
     for (const t of tools) {
       assert.ok(t.name.startsWith('webnovel_'), `${t.name} 应以 webnovel_ 开头`);
       assert.ok(t.description.length > 30, `${t.name} 的描述应足够说明何时使用`);
@@ -271,7 +271,7 @@ test('MCP · 配了 token 就必须带 Bearer，/health 不需要', async () => 
 
     const ok = await s.rpc('tools/list', {}, { headers: { authorization: 'Bearer secret-token-123' } });
     assert.equal(ok.status, 200);
-    assert.equal(ok.body.result.tools.length, 10);
+    assert.equal(ok.body.result.tools.length, 11);
 
     const health = await fetch(`${s.base}/health`);
     assert.equal(health.status, 200);
@@ -352,6 +352,125 @@ test('MCP · 并发提交同一章不损坏数据', async () => {
     assert.equal(idx.chapters.length, 1, '并发提交后索引里只应有一条');
     const state = JSON.parse(fs.readFileSync(path.join(config.booksRoot, 'race', '.webnovel', 'state.json'), 'utf8'));
     assert.equal(state.progress.currentChapter, 1);
+  } finally {
+    await s.close();
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * S3 · P0-1 状态双通道：footer 每次返回附带最新状态（L0 客户端防忘的核心机制）
+ * ------------------------------------------------------------------ */
+
+const FULL_FOOTER = /（书：tingwu｜《听物》都市异能｜已写 1 章 \/ 3200 字（目标 100 章）｜主角：林越·炼气一层·旧宅·指腹擦伤｜⚠ 1 条伏笔到期未回收）/;
+
+test('MCP · 状态双通道：commit/status/query 返回末尾都带最新状态行', async () => {
+  const s = await start(tempConfig());
+  try {
+    const call = (name, args) => base_rpc(s.base, name, args).then((r) => {
+      assert.equal(r.status, 200, `${name} 应返回 200`);
+      return r.body.result;
+    });
+    await call('webnovel_init', { bookId: 'tingwu', title: '听物', genre: '都市异能', targetChapters: 100 });
+    await call('webnovel_outline', { bookId: 'tingwu', action: 'write_chapter', chapter: 1, text: '# 第一章 旧宅\n- 场景：黄昏的旧宅' });
+    await call('webnovel_outline', { bookId: 'tingwu', action: 'write_text', chapter: 1, title: '旧宅', text: '林越推开铁门，指尖传来震颤。' });
+
+    const commit = await call('webnovel_commit', {
+      bookId: 'tingwu',
+      chapter: 1,
+      title: '旧宅',
+      summary: '林越在旧宅拿到母亲留下的铁盒。',
+      strand: 'quest',
+      wordCount: 3200,
+      deltas: {
+        protagonist: { name: '林越', power: { realm: '炼气一层' }, location: '旧宅', condition: '指腹擦伤' },
+        foreshadowing: { planted: [{ name: '母亲留下的铁盒', plannedPayoff: 1, importance: 'high' }] },
+      },
+    });
+    assert.match(commit.content[0].text, FULL_FOOTER, 'commit 返回应带完整状态行');
+
+    const status = await call('webnovel_status', { bookId: 'tingwu' });
+    assert.match(status.content[0].text, FULL_FOOTER, 'status 返回应带完整状态行');
+
+    const query = await call('webnovel_query', { bookId: 'tingwu', kind: 'status' });
+    assert.match(query.content[0].text, FULL_FOOTER, 'query 返回应带完整状态行');
+  } finally {
+    await s.close();
+  }
+});
+
+test('MCP · context 返回只带轻量书标记，不与任务书里的状态重复', async () => {
+  const s = await start(tempConfig());
+  try {
+    const call = (name, args) => base_rpc(s.base, name, args).then((r) => r.body.result);
+    await call('webnovel_init', { bookId: 'tingwu', title: '听物', genre: '都市异能' });
+    await call('webnovel_outline', { bookId: 'tingwu', action: 'write_chapter', chapter: 1, text: '# 第一章 旧宅' });
+
+    const ctx = await call('webnovel_context', { bookId: 'tingwu', chapter: 1 });
+    assert.match(ctx.content[0].text, /写作任务书/);
+    assert.ok(ctx.content[0].text.endsWith('（书：tingwu）'), 'context 只应带轻量书标记');
+    assert.ok(!ctx.content[0].text.includes('（书：tingwu｜'), 'context 不应带完整状态行');
+
+    // 缺章纲的 blocker 路径同样带轻量标记
+    const blocked = await call('webnovel_context', { bookId: 'tingwu', chapter: 2 });
+    assert.ok(blocked.content[0].text.endsWith('（书：tingwu）'), 'blocker 场景也应带轻量书标记');
+  } finally {
+    await s.close();
+  }
+});
+
+test('MCP · WEBNOVEL_STATUS_FOOTER=off 时所有返回只剩（书：id）', async () => {
+  const s = await start(tempConfig({ footer: 'off' }));
+  try {
+    const call = (name, args) => base_rpc(s.base, name, args).then((r) => r.body.result);
+    await call('webnovel_init', { bookId: 'tingwu', title: '听物', genre: '都市异能' });
+    const results = {
+      commit: await call('webnovel_commit', { bookId: 'tingwu', chapter: 1, title: '旧宅', summary: '开场。', strand: 'quest', wordCount: 100 }),
+      status: await call('webnovel_status', { bookId: 'tingwu' }),
+      query: await call('webnovel_query', { bookId: 'tingwu', kind: 'status' }),
+    };
+    for (const [label, r] of Object.entries(results)) {
+      assert.ok(r.content[0].text.endsWith('（书：tingwu）'), `${label} 应只剩轻量书标记`);
+      assert.ok(!r.content[0].text.includes('（书：tingwu｜'), `${label} 不应带完整状态行`);
+    }
+    const init = await s.rpc('initialize', { protocolVersion: '2025-06-18' });
+    assert.ok(!init.body.result.instructions.includes('当前书库只有一本书'), 'off 时 initialize 不带状态前言');
+  } finally {
+    await s.close();
+  }
+});
+
+test('MCP · 书库恰好一本书时 initialize 的 instructions 带状态快照，多书/空库不带', async () => {
+  const s = await start(tempConfig());
+  try {
+    // 空库：基础铁律文案原样，不带状态前言
+    const empty = await s.rpc('initialize', { protocolVersion: '2025-06-18' });
+    assert.match(empty.body.result.instructions, /webnovel_context/);
+    assert.ok(!empty.body.result.instructions.includes('当前书库只有一本书'));
+
+    // 一本书：前言含 bookId、书名与状态
+    await base_rpc(s.base, 'webnovel_init', { bookId: 'tingwu', title: '听物', genre: '都市异能', targetChapters: 100 });
+    const one = await s.rpc('initialize', { protocolVersion: '2025-06-18' });
+    assert.match(one.body.result.instructions, /当前书库只有一本书（bookId=tingwu/);
+    assert.match(one.body.result.instructions, /《听物》都市异能/);
+
+    // 两本书：不带状态前言（避免指错书）
+    await base_rpc(s.base, 'webnovel_init', { bookId: 'second', title: '第二本' });
+    const two = await s.rpc('initialize', { protocolVersion: '2025-06-18' });
+    assert.ok(!two.body.result.instructions.includes('当前书库只有一本书'), '多书时不应带状态快照');
+  } finally {
+    await s.close();
+  }
+});
+
+test('MCP · 状态文件损坏时 footer 静默降级为（书：id），工具照常工作', async () => {
+  const config = tempConfig();
+  const s = await start(config);
+  try {
+    await base_rpc(s.base, 'webnovel_init', { bookId: 'tingwu', title: '听物' });
+    fs.writeFileSync(path.join(config.booksRoot, 'tingwu', '.webnovel', 'project.json'), '{broken json');
+    const r = await base_rpc(s.base, 'webnovel_query', { bookId: 'tingwu', kind: 'foreshadowing' });
+    assert.notEqual(r.body.result.isError, true, '损坏的状态文件不应拖垮工具调用');
+    assert.ok(r.body.result.content[0].text.endsWith('（书：tingwu）'), '应降级为轻量书标记');
   } finally {
     await s.close();
   }

@@ -38,7 +38,7 @@
 然后在 WorkBuddy 的**连接器管理**里点**信任**，重启会话。之后直接说人话：
 
 ```
-帮我开一本新书，都市异能，主角能听见物品的记忆，目标 200 万字
+帮我开一本新书，都市异能，主角能看见别人头顶的倒计时，目标 200 万字
 写第 1 章
 主角现在什么境界？
 玉佩那条伏笔收了没？
@@ -47,7 +47,7 @@
 
 ---
 
-## 10 个工具
+## 11 个工具
 
 | 工具 | 什么时候用 |
 |---|---|
@@ -61,6 +61,12 @@
 | `webnovel_pacing` | 节奏体检（三线占比与断档） |
 | `webnovel_review` | 审查某一章（六维一致性） |
 | `webnovel_memory` | 沉淀 / 检索写作经验 |
+| `webnovel_doctor` | 机器态体检 / 从提交链重放重建 |
+
+关键机制一句话：**审查记录**——`webnovel_review` 的结果会落盘，`webnovel_commit`
+凭它放行（还有未处理的 🔴 会被拒绝）；**状态尾**——每次工具返回末尾附带最新状态行，
+没有系统提示钩子的裸客户端也丢不了上下文；**体检**——提交链是唯一事实来源，
+怀疑「系统记的」和「实际写过的」对不上时，`webnovel_doctor` 重放对账给你看。
 
 另外提供 6 个 MCP 提示词（`prompts/list`）：`webnovel-init` / `webnovel-plan` / `webnovel-write` /
 `webnovel-review` / `webnovel-query` / `webnovel-learn` —— 客户端不装任何专家包也能拿到整套流程手册。
@@ -109,6 +115,7 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 | `WEBNOVEL_BIND` | `0.0.0.0` | 监听地址；只给本机用就设 `127.0.0.1` |
 | `WEBNOVEL_TOKEN` | 空 | 非空则要求 `Authorization: Bearer <token>`；`/health` 免鉴权 |
 | `WEBNOVEL_MAX_BODY` | 32MB | 单次请求体上限（提交整章正文用得到） |
+| `WEBNOVEL_STATUS_FOOTER` | `full` | 工具返回末尾的状态行；设 `off` 关掉（只留「（书：id）」省 token） |
 
 ---
 
@@ -129,8 +136,8 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 books/我的小说/
 ├── 设定集/    世界观.md · 力量体系.md · 主角卡.md · 金手指.md
 ├── 大纲/      总纲.md · 卷纲/ · 章纲/
-├── 正文/      第0001章-旧宅.md
-└── .webnovel/ state / index / foreshadowing / memory / commits / summaries
+├── 正文/      第0001章-夜航.md
+└── .webnovel/ state / index / foreshadowing / memory / commits / summaries / reviews
 ```
 
 全是纯文本：能读、能改、能 git、能随时打包带走。
@@ -144,7 +151,7 @@ npm test                                  # = node --test（自动发现 test/ �
 node --test test/state.test.js            # 只想跑一个文件
 
 node scripts/live-check.mjs http://<主机>:8600/mcp <token>       # 黑盒验收 18 项
-node scripts/scenario-check.mjs http://<主机>:8600/mcp <token>   # 场景验收 13 项
+node scripts/scenario-check.mjs http://<主机>:8600/mcp <token>   # 场景验收 20 项
 node scripts/robustness-check.mjs http://<主机>:8600/mcp <token> # 健壮性 6 项
 ```
 
