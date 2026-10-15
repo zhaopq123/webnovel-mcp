@@ -93,19 +93,30 @@ test('脱敏规则确实能失败（防止门禁恒真）', () => {
   assert.match('someone@gm' + 'ail.com', new RegExp(mail.pattern.source, 'i'));
 });
 
-test('版本号只有一个真相源', async () => {
+test('版本号只有一个真相源（含所有专家包）', async () => {
   const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   const { SERVER_INFO } = await import(pathToFileURL(path.join(ROOT, 'mcp', 'protocol.mjs')).href);
   const changelog = readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-  const expert = JSON.parse(
-    readFileSync(path.join(ROOT, 'expert', 'webnovel-coach', '.codebuddy-plugin', 'plugin.json'), 'utf8'),
-  );
 
   const top = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/m);
   assert.ok(top, 'CHANGELOG 顶部没有 `## [x.y.z]` 版本段');
   assert.equal(SERVER_INFO.version, pkg.version, 'MCP serverInfo 与 package.json 版本不一致');
-  assert.equal(top[1], pkg.version, 'CHANGELOG 最新版本与 package.json 不一致（服务自报版本号会是假的）');
-  assert.equal(expert.version, pkg.version, '专家包与 MCP 版本不一致');
+  assert.equal(top[1], pkg.version, 'CHANGELOG 最新版本与 package.json 版本不一致（服务自报版本号会是假的）');
+
+  // 专家包不止一个（webnovel-coach / webnovel-reviewer…），逐个对齐，漏一个就是假版本。
+  const expertDir = path.join(ROOT, 'expert');
+  const expertEntries = readdirSync(expertDir, { withFileTypes: true }).filter((e) => e.isDirectory());
+  assert.ok(expertEntries.length > 0, 'expert/ 下没有专家包目录，扫描逻辑坏了');
+  const drifted = [];
+  for (const entry of expertEntries) {
+    const manifest = JSON.parse(
+      readFileSync(path.join(expertDir, entry.name, '.codebuddy-plugin', 'plugin.json'), 'utf8'),
+    );
+    if (manifest.version !== pkg.version) {
+      drifted.push(`${entry.name} 停在 ${manifest.version}`);
+    }
+  }
+  assert.deepEqual(drifted, [], `专家包版本与 package.json 不一致：${drifted.join('；')}`);
 });
 
 test('npm test 用自动发现，不用会被当文件的路径写法', () => {

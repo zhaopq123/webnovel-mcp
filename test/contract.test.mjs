@@ -4,6 +4,9 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { TOOL_DEFS, listTools, BOOK_ID_RE } from '../mcp/tools.mjs';
 import { TOOL_NAMES } from '../mcp/tool-names.mjs';
 import { PROMPTS, PROMPT_NAMES } from '../mcp/prompts.mjs';
@@ -42,6 +45,31 @@ test('契约 · 提示词引用的工具都真实存在', () => {
     const referenced = new Set([...p.content.matchAll(/webnovel_[a-z_]+/g)].map((m) => m[0]));
     for (const name of referenced) {
       assert.ok(known.has(name), `${p.name} 引用了不存在的工具 ${name}`);
+    }
+  }
+});
+
+test('契约 · 专家正文引用的工具都真实存在', () => {
+  // README 承诺过这条防线，但一直只覆盖 prompts.mjs——专家正文里写错工具名
+  // （如把 outline 的 action=write_text 写成独立的 webnovel_write_text）没人拦。
+  // 现在遍历 expert/ 下所有专家的 agents/*.md，写错即红。
+  const known = new Set(TOOL_NAMES);
+  const expertRoot = path.resolve(fileURLToPath(import.meta.url), '..', '..', 'expert');
+  const files = [];
+  for (const entry of readdirSync(expertRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const agentsDir = path.join(expertRoot, entry.name, 'agents');
+    if (!existsSync(agentsDir)) continue;
+    for (const f of readdirSync(agentsDir)) {
+      if (f.endsWith('.md')) files.push(path.join(agentsDir, f));
+    }
+  }
+  assert.ok(files.length > 0, 'expert/ 下没扫到 agents/*.md，扫描逻辑坏了');
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    const referenced = new Set([...text.matchAll(/webnovel_[a-z_]+/g)].map((m) => m[0]));
+    for (const name of referenced) {
+      assert.ok(known.has(name), `${path.basename(file)} 引用了不存在的工具 ${name}`);
     }
   }
 });

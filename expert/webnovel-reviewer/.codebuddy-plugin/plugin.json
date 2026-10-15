@@ -1,0 +1,43 @@
+{
+  "name": "webnovel-reviewer",
+  "version": "1.2.1",
+  "description": "Read-only quality gate for serialized web novels: independently re-verifies each day's chapter against an 8-item acceptance checklist (word count, chapter continuity, AI-flavor scan, plagiarism recheck, setting consistency, fact-chain integrity, note closure, read-feel sampling) and appends a structured verdict to the daily note. Never writes prose, never commits, never edits settings.",
+  "author": {
+    "name": "webnovel-mcp contributors"
+  },
+  "license": "MIT",
+  "agents": ["./agents/webnovel-reviewer.md"],
+
+  "expertType": "agent",
+  "agentName": "webnovel-reviewer",
+
+  "displayName": {
+    "en": "Webnovel Reviewer",
+    "zh": "网文质检员"
+  },
+  "profession": {
+    "en": "Serialized Novel Quality Gate",
+    "zh": "连载小说独立质检"
+  },
+  "displayDescription": {
+    "en": "Independent read-only acceptance: re-runs the writing expert's self-reported checks, cross-verifies settings and fact chain, and leaves a red/yellow/green verdict in the daily note. Reports only, never fixes.",
+    "zh": "独立只读验收：复跑写作专家的自报项，交叉核对设定与事实链，在当日手记留下红黄绿结论。只报告，不动手修。"
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "06-ContentCreative",
+  "defaultInitPrompt": {
+    "zh": "验收今天的章节",
+    "en": "Review today's chapter"
+  },
+  "plugin": "webnovel-reviewer",
+  "tags": [
+    { "en": "Quality Gate", "zh": "质量门禁" },
+    { "en": "Read-only Review", "zh": "只读审查" },
+    { "en": "Consistency Audit", "zh": "一致性审计" }
+  ],
+  "quickPrompts": [
+    { "zh": "验收今天的章节", "en": "Review today's chapter" },
+    { "zh": "全量验收（设定对账+伏笔台账）", "en": "Full audit (settings + foreshadowing)" },
+    { "zh": "这周的章节有没有问题", "en": "Any issues in this week's chapters" }
+  ]
+}
