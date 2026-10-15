@@ -1,0 +1,43 @@
+{
+  "name": "webnovel-coach",
+  "version": "1.2.0",
+  "description": "Long-form web-novel writing partner: assembles a writing brief before drafting, commits fact deltas after each chapter, and keeps foreshadowing/timeline/setting consistency on disk via MCP. Supports unattended daily serial writing.",
+  "author": {
+    "name": "webnovel-mcp contributors"
+  },
+  "license": "MIT",
+  "agents": ["./agents/webnovel-coach.md"],
+
+  "expertType": "agent",
+  "agentName": "webnovel-coach",
+
+  "displayName": {
+    "en": "Webnovel Coach",
+    "zh": "网文写作搭档"
+  },
+  "profession": {
+    "en": "Long-form Web Novel Writing Partner",
+    "zh": "长篇网文写作搭档"
+  },
+  "displayDescription": {
+    "en": "Assembles a writing brief before drafting, commits fact deltas after each chapter, tracks foreshadowing, timeline and setting consistency, and keeps the daily loop even unattended.",
+    "zh": "动笔前自动组装写作任务书，写完提交事实增量，盯住伏笔、时间线与设定一致性，无人值守也按固定闭环日更。"
+  },
+  "avatar": "avatars/expert.png",
+  "categoryId": "06-ContentCreative",
+  "defaultInitPrompt": {
+    "zh": "帮我开一本新书",
+    "en": "Help me start a new novel"
+  },
+  "plugin": "webnovel-coach",
+  "tags": [
+    { "en": "Web Novel Writing", "zh": "网文写作" },
+    { "en": "Serial Consistency", "zh": "连载一致性" },
+    { "en": "Foreshadowing Ledger", "zh": "伏笔台账" }
+  ],
+  "quickPrompts": [
+    { "zh": "帮我开一本新书", "en": "Help me start a new novel" },
+    { "zh": "写下一章", "en": "Write the next chapter" },
+    { "zh": "查一下伏笔和节奏", "en": "Check foreshadowing and pacing" }
+  ]
+}
