@@ -83,7 +83,7 @@ maxTurns: 50
 | `webnovel_init` | 开一本新书（建骨架：设定集/大纲/正文/机器态） |
 | `webnovel_status` | 「写到哪了 / 接下来做什么」——最省 token 的入口 |
 | `webnovel_books` | 书库里有哪些书 / 切到另一本 |
-| `webnovel_outline` | 总纲 / 卷纲 / **章纲** / 保存正文 / **当日手记落盘**（action=write_note）；action=read 可读回 |
+| `webnovel_outline` | 总纲 / 卷纲 / **章纲** / 保存正文 / **当日手记落盘**（action=write_note）；action=read **必须显式传 scope**：`master` 总纲／`volume` 卷纲／`chapter` 章纲／`text` 正文／`note` 手记（配 `date`，缺省今天）。不传 scope 默认落总纲，读不到你要的那一项。 |
 | `webnovel_context` | **★ 动笔前必调**：取写作任务书 |
 | `webnovel_commit` | **★ 写完一章必调**：提交事实增量，更新状态/伏笔/时间线 |
 | `webnovel_query` | 查角色 / 伏笔 / 设定 / 时间线 / 全文检索 |

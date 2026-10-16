@@ -344,7 +344,7 @@ export const TOOL_DEFS = [
       title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名。' },
       chapterRange: { type: 'string', description: '卷的章节范围，例如 "1-100"（write_volume 时可选）。' },
       date: { type: 'string', description: '手记日期，YYYY-MM-DD（write_note 时可选，缺省今天）。' },
-      scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text', 'note'], description: 'read 动作读哪一项。note=当日手记（配合 date，缺省今天）。' },
+      scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text', 'note'], description: 'read 动作读哪一项。强烈建议显式传：省略会默认落 master（总纲）或 chapter（章纲），静默读不到你要的那一项。master=总纲／volume=卷纲(volume=N)／chapter=章纲(chapter=N)／text=正文(chapter=N)／note=当日手记(date=YYYY-MM-DD，缺省今天)。' },
     },
     ['action'],
     async (args, config) => {
@@ -352,26 +352,29 @@ export const TOOL_DEFS = [
       const action = String(args.action ?? '').trim();
 
       if (action === 'read') {
-        const scope = args.scope ?? (args.chapter ? 'chapter' : 'master');
+        const explicitScope = args.scope != null && String(args.scope).trim() !== '';
+        const scope = explicitScope ? String(args.scope).trim()
+          : (args.chapter ? 'chapter' : 'master');
+        const hint = explicitScope ? '' : `\n\n（未指定 scope，本次读的是${scope === 'chapter' ? '章纲' : '总纲'}。要读别的请显式传 scope：master 总纲 / volume 卷纲(volume=N) / chapter 章纲(chapter=N) / text 正文(chapter=N) / note 手记(date=YYYY-MM-DD，缺省今天)）`;
         if (scope === 'master') {
           const content = readMaster(dir);
-          return content ? `# 总纲（${id}）\n\n${content.trim()}` : `（《${id}》还没有总纲）`;
+          return (content ? `# 总纲（${id}）\n\n${content.trim()}` : `（《${id}》还没有总纲）`) + hint;
         }
         if (scope === 'volume') {
           const v = args.volume ?? 1;
           const content = readVolume(dir, v);
-          return content ? content.trim() : `（第 ${v} 卷还没有卷纲）`;
+          return (content ? content.trim() : `（第 ${v} 卷还没有卷纲）`) + hint;
         }
         if (scope === 'chapter') {
           const content = readChapter(dir, args.chapter);
-          return content ? content.trim() : `（第 ${args.chapter} 章还没有章纲）`;
+          return (content ? content.trim() : `（第 ${args.chapter} 章还没有章纲）`) + hint;
         }
         if (scope === 'note') {
           const found = readNote(dir, args.date);
-          return found ? found.text.trim() : `（${args.date ? args.date : '今天'} 还没有当日手记）`;
+          return (found ? found.text.trim() : `（${args.date ? args.date : '今天'} 还没有当日手记）`) + hint;
         }
         const found = readChapterText(dir, args.chapter);
-        return found ? found.text : `（第 ${args.chapter} 章还没有正文）`;
+        return (found ? found.text : `（第 ${args.chapter} 章还没有正文）`) + hint;
       }
 
       const content = String(args.text ?? '');

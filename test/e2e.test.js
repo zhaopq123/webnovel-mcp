@@ -1079,3 +1079,29 @@ test('E2E · 手记读回：outline read scope=note 与 write_note 对称', asyn
     /YYYY-MM-DD/,
   );
 });
+
+test('E2E · read 不传 scope 会静默降级 → 现在必须附带 scope 提示行', async () => {
+  const booksRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-scopehint-'));
+  const config = { booksRoot, token: '', port: 0, bind: '127.0.0.1', maxBody: 1 << 20 };
+  await applyTool('webnovel_init', { bookId: 'n', title: '提示' }, config);
+  const dir = findProjectRoot(path.join(booksRoot, 'n'));
+  fs.writeFileSync(path.join(dir, '大纲', '总纲.md'), '# 总纲\n设定在这里', 'utf8');
+
+  // 省略 scope → 读总纲（历史默认，不改行为），但必须让调用方看见「你读的是总纲」
+  const noScope = await applyTool('webnovel_outline', { bookId: 'n', action: 'read' }, config);
+  assert.match(noScope, /设定在这里/);
+  assert.match(noScope, /未指定 scope/, '省略 scope 必须给出提示行');
+
+  // 省略 scope 且带 chapter → 默认章纲，提示文案随之变化
+  const noScopeCh = await applyTool('webnovel_outline', { bookId: 'n', action: 'read', chapter: 1 }, config);
+  assert.match(noScopeCh, /未指定 scope，本次读的是章纲/);
+
+  // 显式传 scope → 不许出现提示行（否则是噪音）
+  const explicit = await applyTool('webnovel_outline', { bookId: 'n', action: 'read', scope: 'master' }, config);
+  assert.match(explicit, /设定在这里/);
+  assert.doesNotMatch(explicit, /未指定 scope/, '显式传 scope 时不应有提示行');
+
+  const explicitEmpty = await applyTool('webnovel_outline', { bookId: 'n', action: 'read', scope: 'note' }, config);
+  assert.match(explicitEmpty, /还没有当日手记/);
+  assert.doesNotMatch(explicitEmpty, /未指定 scope/, '显式传 scope=note 时不应有提示行');
+});
