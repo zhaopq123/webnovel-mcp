@@ -46,6 +46,15 @@ mkdir -p ~/.workbuddy/plugins/marketplaces/my-experts/plugins
 cp -r expert/webnovel-coach expert/webnovel-reviewer ~/.workbuddy/plugins/marketplaces/my-experts/plugins/
 ```
 
+> **⚠️ 只拷目录不够（2026-10-16 实测）**：WorkBuddy 扫描本地专家市场按
+> `~/.workbuddy/plugins/marketplaces/my-experts/.codebuddy-plugin/marketplace.json`
+> 的 `plugins` 名单枚举——**名单里没有的包对 UI 完全不存在**。首次安装新专家
+> 必须在该清单的 plugins 数组加一行 `{ "name": "<专家名>", "source": "./plugins/<专家名>",
+> "description": "<一句话>" }`，然后重启 WorkBuddy。完整安装链共五处
+> （市场清单 / marketplace 目录 / cache 快照 / installed_plugins.json /
+> experts/custom/<用户id>/experts.json），走方式一的 UI 导入则全部自动完成——
+> **不确定就选方式一**。
+
 > 历史上本文件写的 `~/.workbuddy-ai/skills/` 路径有误，正确位置是上面的专家目录；
 > 以 skill 形式安装（`~/.workbuddy/skills/`）也能触发，但**不要与专家同时安装**，会双触发。
 

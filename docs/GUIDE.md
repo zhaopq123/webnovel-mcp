@@ -32,7 +32,7 @@
 克隆本仓库，装依赖（`npm install`），启动服务（`node server.mjs`，端口和 token 见 [docs/USAGE.md](USAGE.md)）。手机等特殊环境看 `scripts/` 下的部署脚本。
 
 **第 2 步 · 装专家**
-把 `expert/webnovel-coach/` 和 `expert/webnovel-reviewer/` 两个目录导入 WorkBuddy 专家（打包 zip 或复制到我的专家目录均可）。注意：如果以前装过同名 skill，先删掉，会和专家双触发。
+把两个专家包分别打包为 zip，在 WorkBuddy「专家中心 → 创建专家/导入」导入（推荐，全自动注册）。手动复制目录也可以，但**必须在 `~/.workbuddy/plugins/marketplaces/my-experts/.codebuddy-plugin/marketplace.json` 的 plugins 名单里各加一条**，否则 WorkBuddy 扫描不到，界面上永远搜不到。注意：如果以前装过同名 skill，先删掉，会和专家双触发。
 
 **第 3 步 · 连通验证**
 在对话里对写作专家说：「连上我的 webnovel 服务，跑一次状态检查」。它能报出服务版本和书库状态，就说明通了。
