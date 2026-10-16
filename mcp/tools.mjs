@@ -18,7 +18,7 @@ import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
-  readMaster, readVolume, readChapter, readChapterText,
+  readMaster, readVolume, readChapter, readChapterText, readNote,
 } from '../lib/features/outline.js';
 import { toInt, countWords, wrapTitle } from '../lib/util.js';
 
@@ -344,7 +344,7 @@ export const TOOL_DEFS = [
       title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名。' },
       chapterRange: { type: 'string', description: '卷的章节范围，例如 "1-100"（write_volume 时可选）。' },
       date: { type: 'string', description: '手记日期，YYYY-MM-DD（write_note 时可选，缺省今天）。' },
-      scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text'], description: 'read 动作读哪一项。' },
+      scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text', 'note'], description: 'read 动作读哪一项。note=当日手记（配合 date，缺省今天）。' },
     },
     ['action'],
     async (args, config) => {
@@ -365,6 +365,10 @@ export const TOOL_DEFS = [
         if (scope === 'chapter') {
           const content = readChapter(dir, args.chapter);
           return content ? content.trim() : `（第 ${args.chapter} 章还没有章纲）`;
+        }
+        if (scope === 'note') {
+          const found = readNote(dir, args.date);
+          return found ? found.text.trim() : `（${args.date ? args.date : '今天'} 还没有当日手记）`;
         }
         const found = readChapterText(dir, args.chapter);
         return found ? found.text : `（第 ${args.chapter} 章还没有正文）`;

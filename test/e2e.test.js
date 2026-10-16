@@ -1056,3 +1056,26 @@ test('E2E · 提交：deltas.timeline 传数组时合并为一条，台账不再
   assert.equal(state2.timeline.length, 2);
   assert.equal(state2.timeline[1].event, '摸清边界');
 });
+
+test('E2E · 手记读回：outline read scope=note 与 write_note 对称', async () => {
+  const booksRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-note-'));
+  const config = { booksRoot, token: '', port: 0, bind: '127.0.0.1', maxBody: 1 << 20 };
+  await applyTool('webnovel_init', { bookId: 'n', title: '读回' }, config);
+  const dir = findProjectRoot(path.join(booksRoot, 'n'));
+  writeNote(dir, '## 当日手记\n- 本章：第 1 章', '2026-10-16');
+
+  // applyTool 走完整 MCP 分发链，验证 scope=note 分支真实可用
+  const out = await applyTool('webnovel_outline', { bookId: 'n', action: 'read', scope: 'note', date: '2026-10-16' }, config);
+  assert.match(out, /当日手记/);
+  assert.match(out, /第 1 章/);
+
+  // 无手记的日期 → 明确说没有，不报错
+  const empty = await applyTool('webnovel_outline', { bookId: 'n', action: 'read', scope: 'note', date: '2026-10-15' }, config);
+  assert.match(empty, /还没有当日手记/);
+
+  // 非法日期硬拒绝（与 write_note 同一防线）
+  await assert.rejects(
+    () => applyTool('webnovel_outline', { bookId: 'n', action: 'read', scope: 'note', date: '../../etc/passwd' }, config),
+    /YYYY-MM-DD/,
+  );
+});
