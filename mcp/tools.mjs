@@ -466,7 +466,7 @@ export const TOOL_DEFS = [
           + 'characters（[{name, patch:{role,relation,realm,location,firstChapter,lastChapter,notes}}]，'
           + 'firstChapter/lastChapter 不传会自动填本章号）、'
           + 'world（{factions:[],locations:[],powerSystem:[]}，只增不减）、'
-          + 'timeline（{time,location,event}）、'
+          + 'timeline（{time,location,event}，每章一条；传数组会被合并为一条，多事件用「；」写在 event 里）、'
           + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note}], paid:["名称"], dropped:["名称"]}）。',
       },
     },

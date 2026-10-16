@@ -1015,3 +1015,44 @@ test('E2E · 审查：场景没切换时不再误报「开头没交代地点」'
   const moved = reviewChapter(root, 3, { text: body });
   assert.ok(moved.issues.some((i) => i.dimension === 'continuity' && /上一章结束于/.test(i.message)), '场景确实切换时应提醒交代');
 });
+
+test('E2E · 正文落盘：title 缺省时从正文一级标题取，文件名不再落「未命名」', () => {
+  const root = newProject();
+  const text = '# 灰市的价\n\n林渊决定去卖一枚晶核。';
+  const saved = writeChapterText(root, 2, null, text);
+  assert.ok(/第0002章-灰市的价\.md$/.test(saved.path), `文件名应含 H1 标题，实际 ${saved.path}`);
+
+  // 显式传 title 仍优先
+  const saved2 = writeChapterText(root, 3, '显式标题', '# 不是这个\n\n正文。');
+  assert.ok(/第0003章-显式标题\.md$/.test(saved2.path), `显式 title 优先，实际 ${saved2.path}`);
+
+  // 无 title 且无 H1 → 回落无后缀文件名
+  const saved3 = writeChapterText(root, 4, '', '没有一级标题的正文。');
+  assert.ok(/第0004章\.md$/.test(saved3.path), `无标题应回落，实际 ${saved3.path}`);
+});
+
+test('E2E · 提交：deltas.timeline 传数组时合并为一条，台账不再读空', async () => {
+  const root = newProject();
+  await commitChapter(root, {
+    chapter: 1, title: '旧宅', summary: '测试。', strand: 'quest', force: true,
+    deltas: { timeline: [
+      { time: '黑日第七天·上午', location: '巷口', event: '目击猎杀' },
+      { time: '黑日第七天·傍晚', location: '河堤', event: '被幼兽盯上' },
+      { event: '回屋写小本子' },
+    ] },
+  });
+  const { value: state } = readState(root);
+  assert.equal(state.timeline.length, 1, `台账只应有一条，实际 ${state.timeline.length}`);
+  assert.equal(state.timeline[0].time, '黑日第七天·上午');
+  assert.equal(state.timeline[0].location, '巷口');
+  assert.equal(state.timeline[0].event, '目击猎杀；被幼兽盯上；回屋写小本子');
+
+  // 单对象传法照旧
+  await commitChapter(root, {
+    chapter: 2, title: '规则', summary: '测试二。', strand: 'quest', force: true,
+    deltas: { timeline: { time: '黑日第六天', location: '出租屋', event: '摸清边界' } },
+  });
+  const { value: state2 } = readState(root);
+  assert.equal(state2.timeline.length, 2);
+  assert.equal(state2.timeline[1].event, '摸清边界');
+});
