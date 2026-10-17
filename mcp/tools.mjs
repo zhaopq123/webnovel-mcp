@@ -17,6 +17,7 @@ import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
 import { termTypeLabel } from '../lib/features/terms.js';
+import { computeStructure, renderStructureTable } from '../lib/features/structure.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText, readNote,
@@ -51,6 +52,11 @@ export function loadConfig(env = process.env) {
     footer: String(env.WEBNOVEL_STATUS_FOOTER ?? '').trim().toLowerCase() === 'off' ? 'off' : 'full',
     // 'off' = 任务书不带「本章必守」提示词切片；默认 on，预算见 craft.js 的 BRIEF_DEFAULT_CHARS（单一真相源）。
     briefRules: String(env.WEBNOVEL_BRIEF_RULES ?? '').trim().toLowerCase() === 'off' ? 'off' : 'on',
+    // 结构换算块在 webnovel_status 里的详略：summary（默认，三行）/ full（整张表）/ off（不带）。
+    // 默认不给全表：status 是每轮都可能调的省 token 入口，全表在 init 开书报告里给过一次。
+    structure: ['full', 'off'].includes(String(env.WEBNOVEL_STRUCTURE ?? '').trim().toLowerCase())
+      ? String(env.WEBNOVEL_STRUCTURE).trim().toLowerCase()
+      : 'summary',
     briefRulesChars: (() => {
       const n = Number(env.WEBNOVEL_BRIEF_RULES_CHARS);
       return Number.isFinite(n) && n > 0 ? Math.min(6000, Math.round(n)) : BRIEF_DEFAULT_CHARS;
@@ -282,6 +288,10 @@ export const TOOL_DEFS = [
         '.webnovel/ 状态、索引、伏笔台账、提交链（机器维护）',
         '```',
         '',
+        ...renderStructureTable(computeStructure({
+          targetWords: result.meta.targetWords,
+          targetChapters: result.meta.targetChapters,
+        })),
         '下一步：',
         '1. 用 webnovel_outline action=write_master 定总纲（或让 Agent 帮你拟）',
         '2. 再拆第一卷卷纲（action=write_volume）',
@@ -293,14 +303,22 @@ export const TOOL_DEFS = [
 
   tool(
     'webnovel_status',
-    '一句话看清「写到哪了、有什么没做完」：进度、主角状态、下一章、以及按优先级排序的待办清单。'
-      + '当用户问「写到哪了 / 什么进度 / 接下来该做什么 / 我还有什么没做」，'
-      + '或你刚开始一次写作会话需要建立全局认知时使用。这是最省 token 的入口工具。',
-    {},
+    '一句话看清「写到哪了、有什么没做完」：进度、主角状态、下一章、体量结构换算、以及按优先级排序的待办清单。'
+      + '当用户问「写到哪了 / 什么进度 / 接下来该做什么 / 我还有什么没做 / 这本书该分几部」，'
+      + '或你刚开始一次写作会话需要建立全局认知时使用。这是最省 token 的入口工具。'
+      + '结构部分由目标字数按提示词第二节公式现算（部数/卷数/大层级数/反派洋葱层数/悬念账户层数/弧光段数/归档次数），'
+      + '不需要用户配置；默认只给三行摘要，要逐项依据的整张换算表传 structure=full。',
+    {
+      structure: {
+        type: 'string',
+        enum: ['summary', 'full', 'off'],
+        description: '体量结构换算块的详略：summary（默认三行）/ full（整张表，含恒定区间与节号）/ off（不带）。',
+      },
+    },
     [],
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
-      const status = projectStatus(dir);
+      const status = projectStatus(dir, { structure: args.structure ?? config?.structure ?? 'summary' });
       return [...status.lines, '', bookLine(config, id, dir)].join('\n');
     },
   ),

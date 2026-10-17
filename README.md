@@ -116,6 +116,9 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 | `WEBNOVEL_TOKEN` | 空 | 非空则要求 `Authorization: Bearer <token>`；`/health` 免鉴权 |
 | `WEBNOVEL_MAX_BODY` | 32MB | 单次请求体上限（提交整章正文用得到） |
 | `WEBNOVEL_STATUS_FOOTER` | `full` | 工具返回末尾的状态行；设 `off` 关掉（只留「（书：id）」省 token） |
+| `WEBNOVEL_BRIEF_RULES` | `on` | 任务书里的「本章必守」提示词切片；设 `off` 整块不带 |
+| `WEBNOVEL_BRIEF_RULES_CHARS` | `2100` | 上面那块切片的字数预算（上限 6000）；嫌贵调小 |
+| `WEBNOVEL_STRUCTURE` | `summary` | `webnovel_status` 的体量结构换算块详略：`summary` 三行 / `full` 整张表 / `off` 不带（单次调用可用 `structure=` 参数覆盖） |
 
 ---
 

@@ -249,6 +249,7 @@ A：不需要。设定集是真源，Agent 每次都会重新读。只有**事�
 | 查东西 | `webnovel_query` | `webnovel-query` |
 | 记经验 | `webnovel_memory` | `webnovel-learn` |
 | 看进度 | `webnovel_status` | — |
+| 这本书该分几部 / 多少卷 | `webnovel_status`（`structure=full`） | — |
 | 看节奏 | `webnovel_pacing` | — |
 | 体检 / 修复账目 | `webnovel_doctor` | — |
 
