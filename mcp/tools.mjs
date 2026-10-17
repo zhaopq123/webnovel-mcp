@@ -17,6 +17,7 @@ import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
 import { termTypeLabel } from '../lib/features/terms.js';
+import { debtItemLine } from '../lib/features/ledger.js';
 import { computeStructure, renderStructureTable } from '../lib/features/structure.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
@@ -512,7 +513,14 @@ export const TOOL_DEFS = [
           + 'firstChapter/lastChapter 不传会自动填本章号）、'
           + 'world（{factions:[],locations:[],powerSystem:[]}，只增不减）、'
           + 'timeline（{time,location,event}，每章一条；传数组会被合并为一条，多事件用「；」写在 event 里）、'
-          + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note}], paid:["名称"], dropped:["名称"]}）、'
+          + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note,type,layer,dueChapter,readerAware,'
+          + 'realExplanation,falseAssumption}], paid:["名称"], dropped:["名称"], hinted:["名称"]}）：'
+          + 'type 四类债务（伏笔 foreshadow／悬念 suspense／支票 cheque／红鲱鱼 red_herring，认中文），'
+          + 'layer 悬念所属层（短/卷/部/跨部/全书，本书启用哪几层看 webnovel_status 的换算表），'
+          + 'dueChapter 与 plannedPayoff 同义（支票的应兑现章，落库归一进 plannedPayoff），'
+          + 'readerAware=false 表示读者还没意识到（4.1：不计入悬念余额），'
+          + 'hinted=本章让某条在线问题又露了一次脸（2.3 的「悬置 50 章无暗示＝警报」只看它）；'
+          + 'red_herring 必须配 realExplanation（揭晓后这条线索的真实解释），否则审查会 🔴，'
           + 'terms（[{name,type,aliases?,note?}]，本章出现的新专名登记；type 认中文也认英文：'
           + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）。',
       },
@@ -526,11 +534,14 @@ export const TOOL_DEFS = [
       const lines = [`已提交第 ${result.chapter} 章《${result.title}》——${result.words} 字`];
       if (result.strand) lines.push(`线别：${result.strand}`);
       if (result.planted.length > 0) {
-        lines.push(`新埋伏笔 ${result.planted.length} 条：${result.planted.map((p) => `${p.name}${p.plannedPayoff ? `（计划第 ${p.plannedPayoff} 章回收）` : ''}`).join('、')}`);
+        lines.push(`新登记 ${result.planted.length} 条：${result.planted.map((p) => debtItemLine(p, { chapter: result.chapter })).join('、')}`);
       }
-      if (result.paid.length > 0) lines.push(`已回收伏笔：${result.paid.join('、')}`);
+      if (result.paid.length > 0) lines.push(`已回收：${result.paid.join('、')}`);
+      // 暗示登记单独播一行：它不改状态、只推 hintChapters，回执里不写出来作者会以为没生效
+      // （而 2.3 的「悬置 50 章无暗示」判据吃的就是它）。
+      if (result.hinted?.length > 0) lines.push(`暗示登记（第 ${result.chapter} 章露脸）：${result.hinted.join('、')}`);
       if (result.overdue.length > 0) {
-        lines.push(`⚠ 仍有 ${result.overdue.length} 条伏笔到期未回收：${result.overdue.map((f) => f.name).join('、')}`);
+        lines.push(`⚠ 仍有 ${result.overdue.length} 条到期未回收：${result.overdue.map((f) => f.name).join('、')}`);
       }
       // 专名登记结果单独播报一行：作者要能看见「这次系统记住了哪些新名字」，
       // 疑似漏登记的名字由 warnings 里那条提醒负责（两者别混成一行，混了就看不出哪个要处理）。
