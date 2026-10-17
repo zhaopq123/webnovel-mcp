@@ -91,8 +91,33 @@ async function main() {
   });
 
   await check('建书', async () => {
-    const t = await call('webnovel_init', { bookId, title: '验收之书', genre: '都市异能', targetChapters: 100 });
+    const t = await call('webnovel_init', { bookId, title: '验收之书', genre: '都市异能', targetWords: 300000, targetChapters: 100 });
     expectMatch(t, /已建好新书|已在既有书上补全骨架/, '建书返回');
+    // 第 10 条体量引擎：开书第一屏就要给结构换算表，不能等写到一半才发现部数不对。
+    expectMatch(t, /体量结构换算（提示词第二节）/, '建书结构表');
+    expectMatch(t, /1 部（约 86 章\/部/, '30 万字应为 1 部');
+  });
+
+  await check('创作规则库：19 节切片目录', async () => {
+    const t = await call('webnovel_craft', { action: 'sections' });
+    expectMatch(t, /19 节 \/ 92 切片/, '切片目录');
+  });
+
+  await check('创作规则库：按切片号取原文', async () => {
+    const t = await call('webnovel_craft', { action: 'get', ids: '15.5' });
+    expectMatch(t, /原文切片 15\.5/, '切片头');
+    expectMatch(t, /去 ?AI ?味|AI 味/, '15.5 正文');
+  });
+
+  await check('创作规则库：按阶段组包', async () => {
+    const t = await call('webnovel_craft', { action: 'brief', stage: 'stage6' });
+    expectMatch(t, /创作规则包 · 阶段6/, '阶段包标题');
+    expectMatch(t, /15\.8/, '正文阶段必须带两遍交付制');
+  });
+
+  await check('创作规则库：20 表落点 + 三方自检', async () => {
+    expectMatch(await call('webnovel_craft', { action: 'map' }), /20 表 → 工具包数据模型落点/, '落点表');
+    expectMatch(await call('webnovel_craft', { action: 'check' }), /原文 \/ 切片库 \/ 锁 三方一致/, '自检');
   });
 
   await check('书列表包含该书', async () => {
@@ -131,10 +156,21 @@ async function main() {
       strand: 'quest',
       deltas: {
         protagonist: { name: '林越', location: '旧宅', condition: '指腹擦伤' },
+        terms: [
+          { name: '林越', type: '人物' },
+          { name: '铁盒', type: '物品' },
+        ],
         foreshadowing: { planted: [{ name: '母亲留下的铁盒', plannedPayoff: 30, importance: 'high' }] },
       },
     });
     expectMatch(t, /已提交第 1 章/, '提交');
+    expectMatch(t, /新登记专名 2 条/, '专名登记回执');
+  });
+
+  await check('专名账本可查（铁律 1）', async () => {
+    const t = await call('webnovel_query', { bookId, kind: 'term', name: '铁盒' });
+    expectMatch(t, /铁盒/, '专名卡片');
+    expectMatch(t, /已登记写法/, '专名写法提示');
   });
 
   await check('查询主角状态', async () => {
@@ -158,7 +194,23 @@ async function main() {
   });
 
   await check('进度查询', async () => {
-    expectMatch(await call('webnovel_status', { bookId }), /验收之书/, '进度');
+    const t = await call('webnovel_status', { bookId });
+    expectMatch(t, /验收之书/, '进度');
+    expectMatch(t, /结构换算（提示词第二节/, '状态结构块');
+  });
+
+  await check('部结构：登记本部后状态显示当前位置', async () => {
+    expectMatch(await call('webnovel_outline', {
+      bookId,
+      action: 'write_part',
+      part: 1,
+      title: '旧宅',
+      chapterRange: '1-86',
+      text: '# 第一部 旧宅\n\n- 本部落点：铁盒的来源与母亲的过去\n- 部末钩子：铁盒里不是遗物，是一把钥匙',
+    }), /已保存第 1 部部纲/, '部纲');
+    const t = await call('webnovel_status', { bookId });
+    expectMatch(t, /本部：第 1 部《旧宅》/, '部位置');
+    expectMatch(t, /共 86 章/, '部长度');
   });
 
   await check('路径安全：非法 bookId 被拒', async () => {
