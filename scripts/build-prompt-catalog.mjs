@@ -27,10 +27,22 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(HERE, '..');
 const SOURCE_REL = 'prompt/CREATIVE-PROMPT.md';
 const CATALOG_REL = 'prompt/catalog.json';
 const LOCK_REL = 'prompt/source-lock.json';
+
+/**
+ * 仓库根 = prompt/ 的上一级。与 lib/features/craft.js 共用同一个 WEBNOVEL_PROMPT_ROOT 旋钮：
+ * 一是部署改位，二是让「篡改即红」的测试能在临时副本上跑 ——
+ * 测试不许动工作树里的真原文（node --test 并发跑文件，改真文件会让兄弟用例读到脏 catalog，
+ * 实测过一次偶发红；脚本崩在半路还会把仓库留在脏状态）。
+ */
+function repoRoot() {
+  return process.env.WEBNOVEL_PROMPT_ROOT
+    ? resolve(process.env.WEBNOVEL_PROMPT_ROOT)
+    : resolve(HERE, '..');
+}
+const ROOT = repoRoot();
 
 /** 中文数字（支持一..十九与二十+）→ int。解析失败返回 0。 */
 export function cn2num(s) {

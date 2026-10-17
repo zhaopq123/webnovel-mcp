@@ -8,7 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync, mkdirSync, mkdtempSync } from 'node:fs';
+import os from 'node:os';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,11 +22,37 @@ import {
 
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..');
 const SOURCE = path.join(ROOT, 'prompt', 'CREATIVE-PROMPT.md');
-const CATALOG = path.join(ROOT, 'prompt', 'catalog.json');
 const LOCK = path.join(ROOT, 'prompt', 'source-lock.json');
 const BUILDER = path.join(ROOT, 'scripts', 'build-prompt-catalog.mjs');
 
 const source = () => readFileSync(SOURCE, 'utf8');
+
+/**
+ * 把 prompt/ 整份拷进临时目录，返回一个「假仓库根」。
+ * 篡改类用例一律在这里面上手，绝不改工作树：node --test 是并发跑文件的，
+ * 改真 catalog 会让兄弟用例偶发读到脏哈希（实测红过一次），脚本半路崩还会把仓库留在脏状态。
+ *
+ * 逐文件拷，不用 cpSync(recursive)：本机 Node 22.23.3 在 Windows 上 cpSync 整个目录
+ * 会把进程直接打挂（0xC0000409 / bash 里表现为 exit 127，连 try-catch 都拦不住）。
+ * 这里只有三个已知文件，逐个读写的拷贝方式没有这个雷，也不依赖目录里以后多出什么。
+ */
+function snapshotPrompt() {
+  const tmp = mkdtempSync(path.join(os.tmpdir(), 'wn-craft-tamper-'));
+  const dst = path.join(tmp, 'prompt');
+  mkdirSync(dst, { recursive: true });
+  for (const f of ['CREATIVE-PROMPT.md', 'catalog.json', 'source-lock.json']) {
+    writeFileSync(path.join(dst, f), readFileSync(path.join(ROOT, 'prompt', f)));
+  }
+  return tmp;
+}
+
+/** 用假仓库根跑构建器（WEBNOVEL_PROMPT_ROOT 与 craft.js 共用同一个旋钮）。 */
+function runBuilder(root, args) {
+  return execFileSync(process.execPath, [BUILDER, ...args], {
+    encoding: 'utf8',
+    env: { ...process.env, WEBNOVEL_PROMPT_ROOT: root },
+  });
+}
 
 test('craft · 切片库与原文三方一致（C5 锁 / C7 还原）', () => {
   const result = craftCheck();
@@ -103,34 +130,36 @@ test('craft · 不存在的切片号报错要给出下一步动作', () => {
 });
 
 test('craft · 切片库陈旧时必须拒绝服务，不返回旧规则', () => {
-  const before = readFileSync(CATALOG, 'utf8');
-  const mutated = JSON.parse(before);
-  mutated.units[3].text = mutated.units[3].text + '\n（伪造）';
-  writeFileSync(CATALOG, JSON.stringify(mutated, null, 2) + '\n', 'utf8');
+  const tmp = snapshotPrompt();
   try {
-    assert.throws(() => loadCatalog(), /哈希不符/);
-    assert.equal(craftCheck().ok, false, 'craftCheck 没把篡改判成红');
-    assert.ok(craftCheck().problems.length > 0);
+    const catPath = path.join(tmp, 'prompt', 'catalog.json');
+    const mutated = JSON.parse(readFileSync(catPath, 'utf8'));
+    mutated.units[3].text = mutated.units[3].text + '\n（伪造）';
+    writeFileSync(catPath, JSON.stringify(mutated, null, 2) + '\n', 'utf8');
+    assert.throws(() => loadCatalog({ root: tmp }), /哈希不符/);
+    assert.equal(craftCheck({ root: tmp }).ok, false, 'craftCheck 没把篡改判成红');
+    assert.ok(craftCheck({ root: tmp }).problems.length > 0);
   } finally {
-    writeFileSync(CATALOG, before, 'utf8');
+    rmSync(tmp, { recursive: true, force: true });
   }
-  assert.equal(craftCheck().ok, true, '还原后自检没回绿（测试自己漏了清理）');
+  // 真仓库自始至终没被碰过（这条断言防的就是「测试改完没还原」这种自污）
+  assert.equal(craftCheck().ok, true, '真仓库的切片库自检不绿 —— 测试污染了工作树');
 });
 
-test('craft · 原文被改而未重锁：--check 当场红（防止只改原文忘了重建）', () => {
-  const bak = `${SOURCE}.bak-hygt`;
-  const before = source();
-  copyFileSync(SOURCE, bak);
+test('craft · 原文被改而未重锁：--check 当场红（在临时副本上证明）', () => {
+  const tmp = snapshotPrompt();
   try {
-    writeFileSync(SOURCE, before.replace('### 4.3 开篇还债规则', '### 4.3 开篇还债规则（临时）'), 'utf8');
-    assert.throws(() => execFileSync(process.execPath, [BUILDER, '--check'], { encoding: 'utf8' }), /./,
-      '改了原文 --check 竟然还是绿的');
+    const srcPath = path.join(tmp, 'prompt', 'CREATIVE-PROMPT.md');
+    writeFileSync(srcPath, source().replace('### 4.3 开篇还债规则', '### 4.3 开篇还债规则（临时）'), 'utf8');
+    assert.throws(() => runBuilder(tmp, ['--check']), /--check 失败/, '改了原文 --check 竟然还是绿的');
+    // 重建后回绿 = 「改原文 → 重锁」这条路真的走得通，不只是一个会红的判据
+    runBuilder(tmp, []);
+    assert.match(runBuilder(tmp, ['--check']), /一致/);
   } finally {
-    copyFileSync(bak, SOURCE);
-    rmSync(bak, { force: true });
+    rmSync(tmp, { recursive: true, force: true });
   }
-  const r = execFileSync(process.execPath, [BUILDER, '--check'], { encoding: 'utf8' });
-  assert.match(r, /一致/, `还原后 --check 没回绿：${r}`);
+  const real = execFileSync(process.execPath, [BUILDER, '--check'], { encoding: 'utf8' });
+  assert.match(real, /一致/, `真仓库的 --check 不该被测试带红：${real}`);
 });
 
 test('craft · 构建器 selftest 证明判据可红可绿（闸门本身要能被证明失效）', () => {

@@ -23,6 +23,7 @@ import {
 import { toInt, countWords, wrapTitle } from '../lib/util.js';
 import {
   loadCatalog, craftSections, craftGet, craftBrief, craftMap, craftCheck, renderCheck,
+  BRIEF_DEFAULT_CHARS,
 } from '../lib/features/craft.js';
 
 /**
@@ -47,6 +48,12 @@ export function loadConfig(env = process.env) {
     maxBody: Number.isFinite(rawMax) && rawMax > 0 ? rawMax : DEFAULT_MAX_BODY,
     // 'off' = 工具返回末尾只留书 id（省 token）；默认 'full' = 附带最新状态行（L0 防忘主通道）
     footer: String(env.WEBNOVEL_STATUS_FOOTER ?? '').trim().toLowerCase() === 'off' ? 'off' : 'full',
+    // 'off' = 任务书不带「本章必守」提示词切片；默认 on，预算见 craft.js 的 BRIEF_DEFAULT_CHARS（单一真相源）。
+    briefRules: String(env.WEBNOVEL_BRIEF_RULES ?? '').trim().toLowerCase() === 'off' ? 'off' : 'on',
+    briefRulesChars: (() => {
+      const n = Number(env.WEBNOVEL_BRIEF_RULES_CHARS);
+      return Number.isFinite(n) && n > 0 ? Math.min(6000, Math.round(n)) : BRIEF_DEFAULT_CHARS;
+    })(),
   };
 }
 
@@ -425,7 +432,10 @@ export const TOOL_DEFS = [
     ['chapter'],
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
-      const result = buildWritingBrief(dir, args.chapter);
+      const result = buildWritingBrief(dir, args.chapter, {
+        rules: config.briefRules,
+        rulesMaxChars: config.briefRulesChars,
+      });
       return `${result.markdown}\n\n${bookLine(config, id, dir, true)}`;
     },
   ),

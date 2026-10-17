@@ -74,6 +74,61 @@ test('契约 · 专家正文引用的工具都真实存在', () => {
   }
 });
 
+/**
+ * 从一段文档里挑出「像工具名但注册表里没有」的引用。
+ * `webnovel_*` 这类带通配的写法不算引用（是给读者看的族名，不是让谁去调的接口）。
+ */
+function findUnknownToolRefs(text, known) {
+  const hits = new Set();
+  for (const m of text.matchAll(/webnovel_[a-z_]+\*?/g)) {
+    if (m[0].endsWith('*')) continue;
+    if (!known.has(m[0])) hits.add(m[0]);
+  }
+  return [...hits];
+}
+
+test('契约 · 全仓库文档（含未来的 skills/ 与 prompt/）引用的工具名都真实存在', () => {
+  // 为什么覆盖面要比上一条更宽：分发给别的 agent 的每一份 .md 都是「接口文档」，
+  // 里面写一个不存在的工具名，对面的 agent 就会去调、调不通、然后开始瞎编。
+  // 工具加到第 12 个之后，文档侧是最后补的一环 —— 门禁先就位，新文件一落地就被管。
+  const root = path.resolve(fileURLToPath(import.meta.url), '..', '..');
+  const known = new Set(TOOL_NAMES);
+  const SKIP = new Set(['.git', 'node_modules', 'books', 'logs', 'test-artifacts']);
+  // CHANGELOG 是事故留痕，不是操作指引：里面出现过「webnovel_write_text」这种根本不存在的
+  // 名字，正是因为有人写错过才被记下来 —— 把它扫出来只会逼人把历史改掉。
+  const SKIP_FILES = new Set(['CHANGELOG.md']);
+  const files = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) { if (!SKIP.has(entry.name)) walk(path.join(dir, entry.name)); }
+      else if (entry.isFile() && entry.name.endsWith('.md') && !SKIP_FILES.has(entry.name)) files.push(path.join(dir, entry.name));
+    }
+  })(root);
+  // 扫描面本身要能被证明非空：某一类目录漏了，上面的绿就没有意义。
+  // 这里只断言「每个区都有文件」这种不变量，不写死总数 —— 上一版写了 10，实际仓库只有 9 个 .md，
+  // 门禁红在「文件数」上而不是「引用错名字」上，就是把口径冻成了快照。
+  const ZONES = ['expert', 'docs', 'prompt'];
+  for (const zone of ZONES) {
+    assert.ok(files.some((f) => f.split(path.sep).includes(zone)), `扫描面漏了 ${zone}/`);
+  }
+  assert.ok(files.length >= ZONES.length + 1, `只扫到 ${files.length} 个 .md，少于分区数`);
+  assert.ok(files.some((f) => path.basename(f) === 'README.md'), 'README 不在扫描面里');
+  assert.ok(!files.some((f) => path.basename(f) === 'CHANGELOG.md'), 'CHANGELOG 该豁免却没豁免');
+  const bad = [];
+  for (const file of files) {
+    for (const name of findUnknownToolRefs(readFileSync(file, 'utf8'), known)) {
+      bad.push(`${path.relative(root, file).replace(/\\/g, '/')} → ${name}`);
+    }
+  }
+  assert.deepEqual(bad, [], `文档里有不存在的工具名：\n${bad.join('\n')}`);
+
+  // 判据自证（没有这段，上面的绿可能只是「扫了个空目录」或正则根本不匹配）
+  assert.deepEqual(findUnknownToolRefs('先调 webnovel_wri 再 webnovel_context', known), ['webnovel_wri']);
+  assert.deepEqual(findUnknownToolRefs('工具族 webnovel_* 共 12 个', known), [], '通配写法不该当成引用');
+  assert.deepEqual(findUnknownToolRefs('webnovel_craft action=map', known), []);
+  assert.ok(TOOL_NAMES.length >= 12, `工具数 ${TOOL_NAMES.length} 少于 12，注册表或本断言过期了`);
+});
+
 test('契约 · 提示词 6 个、字段完整', () => {
   assert.equal(PROMPTS.length, 6);
   for (const p of PROMPTS) {
