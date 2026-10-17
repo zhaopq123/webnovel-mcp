@@ -1,7 +1,7 @@
 name: CI
 
 # 为什么要这条流水线：仓库零依赖、判据全在本地跑得起来，「我这边是绿的」不该是唯一的证据。
-# 三条硬口径的闸门都在这里（单测 / 提示词切片与原文同步 / 规则正文只有一份），
+# 四条硬口径的闸门都在这里（单测 / 提示词切片与原文同步 / 规则正文只有一份 / 纯文本分发版与原文一致），
 # 少跑一条就等于把口径漂移留到下一轮上线才发现。
 on:
   push:
@@ -42,3 +42,9 @@ jobs:
 
       - name: 重复检测判据自己能变红
         run: node scripts/check-rule-duplication.mjs --selftest
+
+      - name: 纯文本分发版与原文逐字符一致（手改 paste 文件 = 红）
+        run: node scripts/build-dist.mjs --check
+
+      - name: 分发判据自己能变红
+        run: node scripts/build-dist.mjs --selftest

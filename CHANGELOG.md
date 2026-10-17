@@ -1,5 +1,56 @@
 # 变更记录
 
+## [1.3.0] - 2026-10-17
+
+这版的主题：**把 19 节创作提示词变成可执行的数据模型**。原文逐字入库、构建成 92 个切片，
+由第 12 个工具按阶段装配；原先只写在提示词里的【设定记录】20 张表，逐张落到持久化结构。
+专家包只保留「角色 + 流程 + 指路」，不再抄规则正文——规则从此只有一份。
+
+### 新增
+
+- **`prompt/CREATIVE-PROMPT.md`（原文）+ `prompt/catalog.json`（92 切片）+ sha256 锁**：
+  原文是唯一事实来源，切片由 `scripts/build-prompt-catalog.mjs` 生成；`--check` 校验三者一致，
+  `--selftest` 8 项证明判据能红（含拼接还原逐字符一致）。
+- **第 12 个工具 `webnovel_craft`**：`sections` / `get` / `brief` / `map` / `check`。
+  11 个阶段包（开工协商、阶段 1-7、连载报告、设定记录、流程协议），认中文阶段说法；
+  超预算时显式声明截断并指路 `action=get`，不静默丢规则。
+- **写作任务书接入「本章必守」**：按优先级装配提示词切片，默认预算 2400 字（`WEBNOVEL_BRIEF_RULES_CHARS`
+  可调，`WEBNOVEL_BRIEF_RULES=off` 可关）；装配说明与硬约束始终保留，切片库缺失时告警但不阻断写作。
+- **专名账本 `terms`**（铁律 1）：`.webnovel/terms.json` 持久化；commit 接受 `deltas.terms[]`，
+  正文启发式点名「疑似未登记专名」（保守误报口径，只 warning 不 block）；query `kind=term` 可查；
+  老书无账本照常读，doctor 重放可对账。
+- **体量自适应引擎**：按目标字数现算部数/卷数/大层级/洋葱层/悬念账户层（2.2、2.3 公式），
+  `webnovel_status` 默认给三行摘要、`structure=full` 展开全表；目标字数与章数打架时 🔴 点名，
+  并把建议值算给作者。只算不存，避免制造第二份真相。
+- **叙事债务账本**：伏笔台账升级为四类（伏笔/悬念/支票/红鲱鱼），带层级、暗示章、到期章；
+  余额不足、长期无暗示、支票逾期、红鲱鱼缺真实解释分别判定，阈值集中在 `LEDGER_THRESHOLDS`。
+- **人物档案扩展**（第六节）：三维、内在矛盾、语言指纹、关系推进五级、`knows/notKnows/mistaken`
+  信息表、主角 `humanFlaws`；3.6⑧ 归属核对覆盖「说话人」与「秘密知情者」两类，
+  章节带 🔴 时 commit 不放行（可显式 `force`）。
+- **部（part）结构层**：`outline action=write_part` / `archive_part`，读 `scope=part|part_summary`；
+  部摘要硬限 15 个非空行，落 `.webnovel/parts/`；status 与任务书显示当前位置，倒数 10 章提醒收尾；
+  未建部的老书不编部号。
+- **四形态分发**：WorkBuddy 专家包、`skills/*/SKILL.md` ×3、`prompt/paste-any-agent.md`（整段纯文本）、
+  `prompt/agents-md-snippet.md`（AGENTS.md / 自定义指令 + MCP 配置模板）。
+  粘贴版由 `scripts/build-dist.mjs` 从原文生成，手改即红。
+
+### 改进
+
+- **专家包去重**：coach / reviewer 重写为「角色 + 闭环 + 工具地图 + 取规则指路」，
+  规则正文一律 `webnovel_craft` 取；reviewer 的 R1 字数线改为对照本书章均目标，
+  R5 接入 3.6⑧ 归属核对，R6 明确五类事实增量，R7 补齐 `scope=note|part|part_summary`。
+- **README**：新增「19 节能力地图」「按阶段取规则」「分发矩阵」三段，工具表补到 12 个；
+  明确四条提交前门禁，并标注四项「需 agent 执行、工具不假装能做」的诚实缺口。
+- **CI** 增加纯文本分发版一致性检查与自测；`package.json` 的 `files` 补上 `prompt` / `skills` / `expert`，
+  打包后 `webnovel_craft` 仍能读到切片。
+- 版本三处对齐：`package.json`、MCP `serverInfo`、两个专家包 `plugin.json` 均为 1.3.0。
+
+### 测试
+
+- 全量 **316/316 绿**，连跑 3 轮无抖动；新增 `parts`、`distribution` 等判据，既有 309 条全部保留。
+- 四条门禁：`npm test` / `build-prompt-catalog --check` / `check-rule-duplication`（重复条文数=0）/
+  `build-dist --check`，各自配 `--selftest` 或反例自证。
+
 ## [1.2.4] - 2026-10-16
 
 这版的主题：**修 1.2.3 的假缺口**——`scope=note` 早就有了，是调用方没传 scope 静默降级到总纲，

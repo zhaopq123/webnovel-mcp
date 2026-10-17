@@ -1,6 +1,6 @@
 {
   "name": "webnovel-reviewer",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "description": "Read-only quality gate for serialized web novels: independently re-verifies each day's chapter against an 8-item acceptance checklist (word count, chapter continuity, AI-flavor scan, plagiarism recheck, setting consistency, fact-chain integrity, note closure, read-feel sampling) and appends a structured verdict to the daily note. Never writes prose, never commits, never edits settings.",
   "author": {
     "name": "webnovel-mcp contributors"
