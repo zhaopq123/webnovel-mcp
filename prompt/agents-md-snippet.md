@@ -71,9 +71,9 @@
 | `webnovel_query` | 查角色/伏笔/设定/时间线/专名/全文 |
 | `webnovel_craft` | 取创作提示词：`sections`/`get`/`brief`/`map`/`check` |
 | `webnovel_pacing` | 节奏体检：三线占比与断档 |
-| `webnovel_review` | 审一章（六维 + 3.6⑧ 归属核对），结果落盘并作为提交凭据 |
-| `webnovel_memory` | 沉淀/检索写作经验（自动进后续任务书） |
-| `webnovel_doctor` | 机器态体检 / 从提交链重放重建 |
+| `webnovel_review` | 审一章（九维：一致性/信息隔离/文风/连贯/节奏/大纲/伏笔/追读力 + 可选查重；含 3.6⑧ 归属核对），结果落盘并作为提交凭据 |
+| `webnovel_memory` | 沉淀/检索写作经验（自动进后续任务书）；`baseline` 管文风基准 |
+| `webnovel_doctor` | 体检 `check` / 修客观引用并登记迁移基线 `reconcile` / 从提交链重建 `rebuild` |
 
 ## 五、每章闭环（不可跳步）
 

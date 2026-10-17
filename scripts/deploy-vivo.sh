@@ -7,13 +7,13 @@
 #   VIVO_HOST=<手机IP> VIVO_USER=<ssh 用户> VIVO_PORT=8022 bash scripts/deploy-vivo.sh
 #
 # 做的事：
-#   1. 打包项目（排除 test/ books/ node_modules/）
-#   2. 经 ssh 传到手机 ~/webnovel-mcp 并解包
-#   3. 生成 config.env（含新 token，权限 600）
+#   1. 打包项目（排除 test/ books/ node_modules/ config.env）
+#   2. 经 ssh 传到手机 ~/webnovel-mcp 并解包（不覆盖数据与配置）
+#   3. 保留/补全 config.env（已有绝不重写，只追加缺的键）
 #   4. 安装 webnovel-mcp-guard / webnovel-mcp-ctl 到 $PREFIX/bin
 #   5. 跑守护脚本启动服务并做健康检查
 #   6. 幂等登记进 ubuntu-autostart（重启后自动拉起）
-#   7. 打印 WorkBuddy 侧要用的连接器配置
+#   7. 打印 WorkBuddy 侧要用的连接器配置（token 打码，值用 ctl token 看）
 # ============================================================
 set -euo pipefail
 
@@ -52,30 +52,38 @@ say "1/6 打包并传输"
 # 注意 2：包必须放在被归档目录之外，否则 tar 报 "file changed as we read it"
 TARBALL="../.webnovel-mcp-deploy.tgz"
 rm -f "$TARBALL"
-tar --force-local -czf "$TARBALL" --exclude=./test --exclude=./books --exclude=./node_modules --exclude=./.git --exclude=./logs .
+# config.env 必须排除：它是生产配置，包里带一份就会在解包时把线上配置覆盖掉。
+tar --force-local -czf "$TARBALL" --exclude=./test --exclude=./books --exclude=./node_modules \
+  --exclude=./.git --exclude=./logs --exclude=./config.env --exclude=./config.env.* .
 echo "包大小：$(wc -c < "$TARBALL") 字节"
 # 直接覆盖式解包：保留 books/ 与 config.env（书库数据绝不能被部署动作清掉）
 "${SSH[@]}" 'mkdir -p ~/webnovel-mcp && cat > ~/webnovel-mcp.tgz' < "$TARBALL"
 rm -f "$TARBALL"
 "${SSH[@]}" 'cd ~/webnovel-mcp && tar xzf ~/webnovel-mcp.tgz && rm -f ~/webnovel-mcp.tgz && ls | head -20'
 
-say "2/6 生成/沿用 config.env"
-# 令牌只在首次部署时生成；重复部署沿用旧 token，否则会打断已配好的客户端
+say "2/6 保留/补全 config.env（绝不重写）"
+# 已有 config.env 是生产配置：只补缺失键，不改任何现值。
+# 整份重写会丢掉后来加的 WEBNOVEL_SEARCH_* 等配置（v1.4.0 升级时明确要求不覆盖）。
 TOKEN="$("${SSH[@]}" 'grep -m1 "^WEBNOVEL_TOKEN=" ~/webnovel-mcp/config.env 2>/dev/null | cut -d= -f2-')"
 if [ -z "$TOKEN" ]; then
   TOKEN="$("${SSH[@]}" 'head -c 32 /dev/urandom | od -An -tx1 | tr -d " \n"')"
-  echo "首次部署，生成新 token"
-else
-  echo "沿用已有 token（不改动客户端配置）"
-fi
-"${SSH[@]}" "cat > ~/webnovel-mcp/config.env && chmod 600 ~/webnovel-mcp/config.env" <<EOF
+  echo "首次部署，生成新 config.env"
+  "${SSH[@]}" "cat > ~/webnovel-mcp/config.env && chmod 600 ~/webnovel-mcp/config.env" <<EOF
 WEBNOVEL_ROOT=/data/data/com.termux/files/home/webnovel-mcp/books
 WEBNOVEL_PORT=$PORT
 WEBNOVEL_BIND=0.0.0.0
 WEBNOVEL_TOKEN=$TOKEN
 WEBNOVEL_MAX_BODY=33554432
 EOF
-"${SSH[@]}" 'grep -c . ~/webnovel-mcp/config.env; ls -l ~/webnovel-mcp/config.env'
+else
+  echo "已有 config.env：只补缺失键，不改任何现值（token 沿用）"
+  "${SSH[@]}" "cd ~/webnovel-mcp && cp -a config.env config.env.bak.\$(date +%Y%m%d-%H%M%S) && \
+    for kv in 'WEBNOVEL_ROOT=/data/data/com.termux/files/home/webnovel-mcp/books' 'WEBNOVEL_PORT=$PORT' 'WEBNOVEL_BIND=0.0.0.0' 'WEBNOVEL_MAX_BODY=33554432'; do \
+      k=\${kv%%=*}; grep -q \"^\$k=\" config.env || echo \"\$kv\" >> config.env; \
+    done && chmod 600 config.env"
+fi
+# 只打印键名，绝不回显值（token 不上屏）
+"${SSH[@]}" 'grep -o "^[A-Za-z_]*=" ~/webnovel-mcp/config.env | tr "\n" " "; echo; ls -l ~/webnovel-mcp/config.env'
 
 say "3/6 安装守护与运维脚本"
 "${SSH[@]}" 'cat > $PREFIX/bin/webnovel-mcp-guard && chmod 755 $PREFIX/bin/webnovel-mcp-guard' < scripts/vivo-guard.sh
@@ -124,9 +132,11 @@ cat <<EOF
   "webnovel": {
     "type": "streamableHttp",
     "url": "http://$VIVO_HOST:$PORT/mcp",
-    "headers": { "Authorization": "Bearer $TOKEN" },
+    "headers": { "Authorization": "Bearer <token>" },
     "timeout": 240000
   }
+
+  token 不上屏：在手机侧执行 webnovel-mcp-ctl token 查看后自己填。
 
   运维：ssh $VIVO_USER@$VIVO_HOST -p $VIVO_PORT
         webnovel-mcp-ctl status|restart|stop|logs|token|books|clean

@@ -147,6 +147,37 @@ async function main() {
     expectMatch(await call('webnovel_review', { bookId, chapter: 1 }), /审查报告/, '审查');
   });
 
+  // v1.4.0 新维度：AI 味与外部查重必须由服务端真实走通，不能只在单测里绿。
+  const AI_SAMPLE = ('他心中涌起一股难以言喻的情绪。'.repeat(30))
+    + '这一刻空气仿佛凝固。命运的无常、时间的残酷、人性的幽暗、欲望的深渊交织在一起。'
+    + '他不是害怕而是麻木。他不是犹豫而是等待。他不是逃避而是沉默。';
+
+  await check('审查：AI 味四类判据（15.6）', async () => {
+    const t = await call('webnovel_review', { bookId, chapter: 2, text: AI_SAMPLE });
+    expectMatch(t, /AI 味/, 'AI 味维度');
+    expectMatch(t, /套话|句长|抽象名词|不是/, 'AI 味证据');
+  });
+
+  await check('审查：外部查重三态必须明示（plagiarism=true）', async () => {
+    const t = await call('webnovel_review', {
+      bookId,
+      chapter: 2,
+      text: '陈三把油灯放在窗台上，火苗晃了两下，照亮墙角那只落了灰的木箱。\n他蹲下去，从木箱底下摸出一枚刻着三爪螭纹的铜扣。',
+      plagiarism: true,
+    });
+    expectMatch(t, /外部查重/, '查重段');
+    expectMatch(t, /未执行|待人工确认|疑似撞车|未发现/, '查重三态之一');
+  });
+
+  await check('文风基准：人工设定（15.6）', async () => {
+    const t = await call('webnovel_memory', {
+      bookId,
+      action: 'baseline',
+      content: '{"avgSentence":16,"sentenceSd":9,"avgParagraph":120,"dialogueRatio":0.2,"punctuationDensity":0.14}',
+    });
+    expectMatch(t, /文风基准已按人工值设定/, '基准回执');
+  });
+
   await check('提交事实增量', async () => {
     const t = await call('webnovel_commit', {
       bookId,
@@ -165,6 +196,20 @@ async function main() {
     });
     expectMatch(t, /已提交第 1 章/, '提交');
     expectMatch(t, /新登记专名 2 条/, '专名登记回执');
+  });
+
+  await check('审查：8.2 信息隔离能拦（pov + knowledge）', async () => {
+    // 放在提交之后：主角「林越」已登记，才能证明拦截是因为「还没登记知道」，
+    // 而不是把「角色不存在」误当成信息隔离生效。
+    const t = await call('webnovel_review', {
+      bookId,
+      chapter: 2,
+      text: '林越皱眉，没有接话。',
+      pov: '林越',
+      knowledge: [{ who: '林越', fact: '周伯欠他三百两', mode: 'use' }],
+    });
+    expectMatch(t, /信息隔离/, '信息隔离维度');
+    expectMatch(t, /还没登记知道/, '拦截理由');
   });
 
   await check('专名账本可查（铁律 1）', async () => {

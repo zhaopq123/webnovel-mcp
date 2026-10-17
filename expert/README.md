@@ -13,7 +13,7 @@ MCP 是「手」，这两个专家包是「操作手册」。装了它们，Work
 | 专家 | 角色 | 何时上场 |
 |---|---|---|
 | `webnovel-coach`（网文写作搭档） | 写作 + 自检 + commit + 手记 | 「写下一章 / 开新书」；无人值守日更 21:00 |
-| `webnovel-reviewer`（网文质检员） | 独立只读验收（R1-R8 清单），只报不修 | 「验收今天的章节」；无人值守验收 22:00 |
+| `webnovel-reviewer`（网文质检员） | 独立只读验收（R1-R8 清单 + 九维机器审查复核），只报不修 | 「验收今天的章节」；无人值守验收 22:00 |
 
 > 为什么验收要独立专家：写手自检是「运动员兼裁判」，读感项自检是自欺。
 > reviewer 用 fresh context 复跑写手的自报项（字数/章号/查重/事实链），并对账设定。
@@ -27,8 +27,8 @@ expert/webnovel-reviewer/     # 质检员（只读）
 ├── .codebuddy-plugin/
 │   └── plugin.json          专家清单（categoryId=06-ContentCreative，agent 型）
 ├── agents/
-│   └── webnovel-*.md        专家正文：coach=无人值守条款+铁律+12 工具地图+开书/写章闭环；
-│                             reviewer=无人值守验收+R1-R8 清单+只读铁律+降级路径+输出格式
+│   └── webnovel-*.md        专家正文：coach=无人值守条款+铁律+12 工具地图+开书/写章/老书接管闭环；
+│                             reviewer=无人值守验收+R1-R8 清单+九维复核+只读铁律+降级路径+输出格式
 └── avatars/
     └── expert.png           头像（512×512，≤500KB）
 ```

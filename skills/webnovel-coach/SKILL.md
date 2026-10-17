@@ -1,6 +1,6 @@
 ---
 name: webnovel-coach
-description: 长篇网文写作搭档：开书、定部/卷/章纲、按任务书与 19 节原文写章、去 AI 味、查重、自审、提交事实增量、维护伏笔与人物档案。触发词：写小说、网文、开新书、写第 N 章、下一章、继续写、拆卷、章纲、查设定、伏笔、节奏、写到哪了、日更、连载。
+description: 长篇网文写作搭档：开书、定部/卷/章纲、按任务书与 19 节原文写章、去 AI 味、查重、自审、提交事实增量、维护伏笔与人物档案、接管写了一半的老书。触发词：写小说、网文、开新书、写第 N 章、下一章、继续写、拆卷、章纲、查设定、伏笔、节奏、写到哪了、日更、连载、导入老书。
 ---
 
 # 网文写作搭档（SKILL 版）
@@ -35,14 +35,24 @@ description: 长篇网文写作搭档：开书、定部/卷/章纲、按任务�
 5. `write_master` 总纲 → `write_part`（如多部）→ `write_volume` 当前卷 → `write_chapter` 第 1 章。
 6. `webnovel_status` 汇报，下一步是写第 1 章。
 
+## 接管写了一半的老书
+
+1. 建项目、把正文放进 `正文/`（`第0001章-标题.md`），能补的章纲/设定集照常补。
+2. 至少给最近一章（或逐章）`webnovel_commit` 建链；空链会被 reconcile 拒绝。
+3. `webnovel_doctor action=check` 对账；手工人物/物品/伏笔与重放不一致时，
+   `action=reconcile reason="手工接管"` 登记迁移基线（先备份、只改客观引用、自检+回滚）。
+4. 之后正常续写，老设定不会被「链上没见过」判掉。只接管最近几章就只提交那几章。
+
 ## 写一章
 
 1. `webnovel_context chapter=N` 取任务书（含本章必守规则、前情、状态、伏笔、档案）。
 2. 按章纲写第一遍；按 3.6 自检（`craft action=get id=3.6`）。
 3. 第二遍：按 15.5 去 AI 味 + 15.9 交付自检（`id=15.5` / `id=15.9`），**禁止写完即交**。
 4. `webnovel_outline action=write_text chapter=N title=… text=…` 保存正文。
-5. 查重：首段/独特比喻/特殊句式过搜索；命中重写，引擎不可达就留痕。
-6. `webnovel_review chapter=N`：🔴 必改并重审；🟡 视情况改并向作者说明。
+5. 查重：首段/独特比喻/特殊句式过搜索；有搜索连接器就 `review ... plagiarism=true` 代查，
+   命中重写，引擎不可达就留痕。
+6. `webnovel_review chapter=N`（九维：一致性/信息隔离/文风/连贯/节奏/大纲/伏笔/追读力 +
+   可选查重）：🔴 必改并重审；🟡 视情况改并向作者说明。
 7. `webnovel_commit` 提交：主角状态、新角色（档案字段）、新地点、伏笔/悬念/支票/红鲱鱼、
    时间线、新专名。**不提交 = 这一章没发生过。**
 8. `webnovel_status` 汇报；无人值守时 `write_note` 写当日手记并在对话同步。
@@ -66,7 +76,8 @@ description: 长篇网文写作搭档：开书、定部/卷/章纲、按任务�
   （`kind=chapter|character|foreshadowing|setting|timeline|term|memory|search`）
 - 写：`webnovel_outline action=write_master|write_part|write_volume|write_chapter|write_text|write_note`
 - 审/交：`webnovel_review` → `webnovel_commit`
-- 节奏：`webnovel_pacing`；体检/重建：`webnovel_doctor`；经验：`webnovel_memory`
+- 节奏：`webnovel_pacing`；体检/修账/重建：`webnovel_doctor action=check|reconcile|rebuild`；
+  经验：`webnovel_memory`（`baseline` 是文风基准，不是迁移基线）
 
 ## 沉淀经验
 

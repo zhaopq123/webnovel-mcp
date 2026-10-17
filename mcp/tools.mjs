@@ -7,18 +7,21 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { initProject, isInitialized } from '../lib/core/project.js';
+import { initProject, isInitialized, loadProject } from '../lib/core/project.js';
 import { buildWritingBrief } from '../lib/features/context.js';
 import { commitChapter } from '../lib/features/commit.js';
 import { runQuery } from '../lib/features/query.js';
 import { analyzePacing, renderPacingMarkdown } from '../lib/features/pacing.js';
 import { reviewChapter } from '../lib/features/review.js';
-import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
+import { renderKnowledgeItem } from '../lib/features/knowledge.js';
+import { learnMemory, recallMemory, memoryStats, setStyleBaseline, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
-import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
+import { doctorCheck, renderDoctorMarkdown, doctorRebuild, doctorReconcile } from '../lib/features/doctor.js';
 import { termTypeLabel } from '../lib/features/terms.js';
 import { debtItemLine } from '../lib/features/ledger.js';
-import { computeStructure, renderStructureTable } from '../lib/features/structure.js';
+import { computeStructure, renderStructureTable, renderStructureDiff } from '../lib/features/structure.js';
+import { STYLE_THRESHOLDS } from '../lib/features/style.js';
+import { checkPlagiarism, PLAGIARISM_LIMITS } from '../lib/features/plagiarism.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText, readNote,
@@ -64,6 +67,14 @@ export function loadConfig(env = process.env) {
     briefRulesChars: (() => {
       const n = Number(env.WEBNOVEL_BRIEF_RULES_CHARS);
       return Number.isFinite(n) && n > 0 ? Math.min(6000, Math.round(n)) : BRIEF_DEFAULT_CHARS;
+    })(),
+    // 外部查重（v1.4.0）：指向 websearch MCP（本机 8300 的 /mcp）。
+    // 不配 = 查重功能明示「未执行」，不假装通过；配置了但不可达也如实报错。
+    searchUrl: String(env.WEBNOVEL_SEARCH_URL ?? '').trim(),
+    searchToken: String(env.WEBNOVEL_SEARCH_TOKEN ?? '').trim(),
+    searchTimeoutMs: (() => {
+      const n = Number(env.WEBNOVEL_SEARCH_TIMEOUT_MS);
+      return Number.isFinite(n) && n > 0 ? n : PLAGIARISM_LIMITS.timeoutMs;
     })(),
   };
 }
@@ -202,8 +213,8 @@ export function statusPreamble(config) {
  * 客户端不会拦），旧实现会静默丢掉这些字段：索引里 strand 变 null、前情提要没了摘要、
  * 节奏统计失真。这里把放错位置的字段提回顶层，并把「提过什么」回给模型，让它下次写对。
  * ------------------------------------------------------------------ */
-const COMMIT_TOP_FIELDS = ['summary', 'strand', 'hook', 'ending', 'title', 'wordCount', 'force'];
-const DELTA_FIELDS = ['protagonist', 'characters', 'world', 'timeline', 'foreshadowing', 'terms'];
+const COMMIT_TOP_FIELDS = ['summary', 'strand', 'hook', 'ending', 'title', 'wordCount', 'force', 'pov'];
+const DELTA_FIELDS = ['protagonist', 'characters', 'world', 'timeline', 'foreshadowing', 'terms', 'knowledge'];
 
 export function normalizeCommitArgs(args = {}) {
   const normalized = { ...args };
@@ -263,6 +274,7 @@ export const TOOL_DEFS = [
       }
       const dir = assertInsideReal(config.booksRoot, path.join(config.booksRoot, id));
       fs.mkdirSync(dir, { recursive: true });
+      const prevMeta = loadProject(dir);
       const result = initProject(dir, {
         title: args.title,
         genre: args.genre,
@@ -271,6 +283,26 @@ export const TOOL_DEFS = [
         targetWords: args.targetWords,
         targetChapters: args.targetChapters,
       });
+
+      // 2.1「输出调整说明」：改目标体量是写操作，必须告诉作者哪些结构参数被重算。
+      // 同值重跑、老项目缺字段（按缺省值补）都不输出——没有变化就不许制造噪音。
+      const adjustment = [];
+      if (result.existed && prevMeta) {
+        const nextWords = Number(result.meta.targetWords);
+        const nextChapters = Number(result.meta.targetChapters);
+        const prevWordsRaw = Number(prevMeta.targetWords);
+        const prevChaptersRaw = Number(prevMeta.targetChapters);
+        const oldWords = Number.isFinite(prevWordsRaw) && prevWordsRaw > 0 ? prevWordsRaw : nextWords;
+        const oldChapters = Number.isFinite(prevChaptersRaw) && prevChaptersRaw > 0 ? prevChaptersRaw : nextChapters;
+        if (oldWords !== nextWords || oldChapters !== nextChapters) {
+          adjustment.push(...renderStructureDiff(
+            computeStructure({ targetWords: oldWords, targetChapters: oldChapters }),
+            computeStructure({ targetWords: nextWords, targetChapters: nextChapters }),
+            { prevTargetChapters: oldChapters, nextTargetChapters: nextChapters },
+          ));
+        }
+      }
+
       const lines = [result.existed ? `已在既有书上补全骨架：${id}` : `已建好新书：${id}`];
       if (result.existed) {
         const patched = result.created.slice(1);
@@ -283,6 +315,7 @@ export const TOOL_DEFS = [
         `书名：${result.meta.title}`,
         `题材：${result.meta.genre}`,
         `目标：${result.meta.targetWords} 字 / ${result.meta.targetChapters} 章`,
+        ...(adjustment.length > 0 ? ['', ...adjustment] : []),
         '',
         '目录结构：',
         '```',
@@ -501,6 +534,8 @@ export const TOOL_DEFS = [
       + '确认是新名字就用 deltas.terms 登记，是误报就忽略。'
       + '提交前系统会核对本章的审查记录：还有未处理的严重问题（🔴）时会被拒绝——'
       + '先用 webnovel_review 审一遍并按建议修改；确认要按原稿提交再传 force=true。'
+      + '多视角章节可传 pov（本章视角人物）与 deltas.knowledge（谁得知/使用/透露了什么）：'
+      + '8.2 信息隔离会核对「得知必须有来源、使用/透露必须先知道」，违反默认拦截（force 可过）。'
       + '重复提交同一章是覆盖（幂等）；重提早于当前进度的旧章默认被拒绝（防状态回退），'
       + '确要修正历史章节请传 force=true（历史修正模式：deltas 会被忽略，只更新该章的索引、摘要与字数，线别沿用原值）。'
       + '提交记录本身永久保留。'
@@ -513,6 +548,10 @@ export const TOOL_DEFS = [
         type: 'string',
         enum: ['quest', 'fire', 'constellation'],
         description: '本章属于哪条线：quest=主线剧情 / fire=感情线 / constellation=世界观扩展。',
+      },
+      pov: {
+        type: 'string',
+        description: '本章视角人物（8.2 信息隔离）。必须是已登记角色（角色表或主角卡）。',
       },
       hook: {
         type: 'object',
@@ -546,7 +585,9 @@ export const TOOL_DEFS = [
           + 'humanFlaws 是 6.14 主角人味三项，缺项由 webnovel_status 报待办）、'
           + 'characters（[{name, patch:{role,relation,realm,location,firstChapter,lastChapter,notes,'
           + 'desire,fear,secret,contradiction,plan,goal,arcProgress,relationLevel,relationStage,'
-          + 'voice,knows,notKnows,mistaken}}]，'
+          + 'voice,knows,notKnows,mistaken,condition,items}}]，'
+          + 'condition 是伤病/身体状态（自由文本，如「右臂骨折，未愈」）、items 是持有物品名数组（如 ["青锋剑"]），'
+          + '审查拿它们做 3.6⑧ 伤病/物品归属核对；'
           + 'firstChapter/lastChapter 不传会自动填本章号；relationLevel 认 1-5 也认五级名（陌生/共事/信任/依赖/托付），'
           + 'knows/notKnows/mistaken 是 6.13 信息表、跨章累积去重，审查 3.6⑧ 拿它逐条台词核对归属，'
           + 'voice 是对象（6.5 语言指纹 + 6.13 口语档位），深合并不整份覆盖）、'
@@ -561,7 +602,10 @@ export const TOOL_DEFS = [
           + 'hinted=本章让某条在线问题又露了一次脸（2.3 的「悬置 50 章无暗示＝警报」只看它）；'
           + 'red_herring 必须配 realExplanation（揭晓后这条线索的真实解释），否则审查会 🔴，'
           + 'terms（[{name,type,aliases?,note?}]，本章出现的新专名登记；type 认中文也认英文：'
-          + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）。'
+          + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）、'
+          + 'knowledge（[{who,fact,mode:"learn"|"use"|"reveal",witnessedBy?,toldBy?,evidence?}]，8.2 信息隔离：'
+          + 'learn=谁得知了什么（必须有 witnessedBy 亲眼所见或 toldBy 谁告诉的，toldBy 必须自己先知道）；'
+          + 'use/reveal=谁使用/透露了什么（必须先登记 knows，且不在 notKnows）。违反默认拦截，force 可过）。'
           + '要每张【设定记录】表落在哪个键：webnovel_craft action=map。',
       },
     },
@@ -573,6 +617,10 @@ export const TOOL_DEFS = [
 
       const lines = [`已提交第 ${result.chapter} 章《${result.title}》——${result.words} 字`];
       if (result.strand) lines.push(`线别：${result.strand}`);
+      // 文风基准只在首次提交建立时播一行；日常对比安静，漂移走下面的警告区。
+      if (result.style?.baselineCreated) {
+        lines.push(`文风基准已建立（第 ${result.style.baselineAtChapter} 章；之后每 ${STYLE_THRESHOLDS.compareEvery} 章自动对比，可用 webnovel_memory action=baseline 重设）`);
+      }
       if (result.planted.length > 0) {
         lines.push(`新登记 ${result.planted.length} 条：${result.planted.map((p) => debtItemLine(p, { chapter: result.chapter })).join('、')}`);
       }
@@ -580,6 +628,18 @@ export const TOOL_DEFS = [
       // 暗示登记单独播一行：它不改状态、只推 hintChapters，回执里不写出来作者会以为没生效
       // （而 2.3 的「悬置 50 章无暗示」判据吃的就是它）。
       if (result.hinted?.length > 0) lines.push(`暗示登记（第 ${result.chapter} 章露脸）：${result.hinted.join('、')}`);
+      if (result.pov) lines.push(`本章视角：${result.pov}`);
+      if (result.knowledge) {
+        if (result.knowledge.learned?.length > 0) {
+          lines.push(`认知变更（得知）：${result.knowledge.learned.map((k) => `${k.who}「${k.fact}」`).join('、')}`);
+        }
+        if (result.knowledge.used?.length > 0) {
+          lines.push(`认知核对（使用）：${result.knowledge.used.map((k) => renderKnowledgeItem({ ...k, mode: 'use' })).join('、')}`);
+        }
+        if (result.knowledge.revealed?.length > 0) {
+          lines.push(`认知核对（透露）：${result.knowledge.revealed.map((k) => renderKnowledgeItem({ ...k, mode: 'reveal' })).join('、')}`);
+        }
+      }
       if (result.overdue.length > 0) {
         lines.push(`⚠ 仍有 ${result.overdue.length} 条到期未回收：${result.overdue.map((f) => f.name).join('、')}`);
       }
@@ -659,19 +719,52 @@ export const TOOL_DEFS = [
   tool(
     'webnovel_review',
     '审查某一章的一致性，返回按严重程度排序的问题清单（含原文证据与修改建议）。'
-      + '六个维度：设定一致性（状态冲突、境界回退、已死角色出场、3.6⑧ 台词归属核对——说了他登记为「不知道」的事，以及别人的秘密被非主人说出口）、叙事连贯（与前章衔接）、'
-      + '节奏（三线断档）、大纲符合度、伏笔（到期未回收/埋了没登记）、追读力（章末钩子、段落长度、对话比例）。'
-      + '当用户说「检查一下这章 / 有没有问题 / 帮我审一下 / 会不会崩设定」时使用。'
+      + '维度：设定一致性（状态冲突、境界回退、已死角色出场、3.6⑧ 台词归属核对——说了他登记为「不知道」的事，以及别人的秘密被非主人说出口）、叙事连贯（与前章衔接）、'
+      + '信息隔离（8.2，传 pov/knowledge 时核对得知路径与知情状态）、节奏（三线断档）、文风（15.6 漂移）、'
+      + '大纲符合度、伏笔（到期未回收/埋了没登记）、追读力（章末钩子、段落长度、对话比例）、AI 味（套话/句长过于均匀/抽象名词链/伪深刻句式）。'
+      + '传 plagiarism=true 时再做外部查重：抽 10–16 字特征句去 websearch MCP 比对，'
+      + '命中报 🔴、有结果但无连续相同报 🟡 待人工确认；未配置 WEBNOVEL_SEARCH_URL 时明示「未执行」而不是假装通过。'
+      + '当用户说「检查一下这章 / 有没有问题 / 帮我审一下 / 会不会崩设定 / 查一下有没有抄」时使用。'
       + '若不传 text，会自动读取该章正文文件。审查结果会落盘为该章的审查记录；'
       + '提交时凭这份记录放行——改过正文要重新审查（按文本指纹核对）。',
     {
       chapter: { type: 'number', description: '要审查的章节号。' },
       text: { type: 'string', description: '正文内容。不传则从 正文/ 目录读取该章文件。' },
+      pov: { type: 'string', description: '本章视角人物（可选，8.2 信息隔离预检）。' },
+      knowledge: {
+        type: 'array',
+        items: { type: 'object' },
+        description: '同 commit 的 deltas.knowledge（可选，8.2 信息隔离预检）：'
+          + '[{who,fact,mode,witnessedBy?,toldBy?,evidence?}]。',
+      },
+      plagiarism: {
+        type: 'boolean',
+        description: '是否执行外部查重（默认 false）。需要配置 WEBNOVEL_SEARCH_URL / WEBNOVEL_SEARCH_TOKEN；'
+          + '未配置或服务不可达时报告会写「外部查重未执行」，不会当作通过。',
+      },
     },
     ['chapter'],
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
-      const result = reviewChapter(dir, args.chapter, { text: args.text });
+      // 查重的网络调用放在工具层（reviewChapter 保持同步，单测不需要起服务）。
+      // 不传 text 时先读正文文件，保证「查重对象」与「审查对象」是同一份文本。
+      let text = args.text;
+      if (args.plagiarism && (text === undefined || text === null)) {
+        text = readChapterText(dir, args.chapter)?.text;
+      }
+      const plagiarism = args.plagiarism
+        ? await checkPlagiarism(dir, text ?? '', {
+          url: config.searchUrl,
+          token: config.searchToken,
+          timeoutMs: config.searchTimeoutMs,
+        })
+        : null;
+      const result = reviewChapter(dir, args.chapter, {
+        text,
+        pov: args.pov,
+        knowledge: args.knowledge,
+        plagiarism,
+      });
       return `${result.markdown}\n\n${bookLine(config, id, dir)}`;
     },
   ),
@@ -679,19 +772,21 @@ export const TOOL_DEFS = [
   tool(
     'webnovel_memory',
     '长期写作记忆：action=learn 沉淀一条有效经验（写法/文风/人物把握/读者反馈），'
-      + 'action=recall 检索已沉淀的经验，action=stats 看统计。'
+      + 'action=recall 检索已沉淀的经验，action=stats 看统计，'
+      + 'action=baseline 设置文风基准（content 传 JSON 指标=人工设定；传 auto 或留空=从正文重建）。'
+      + '文风基准有则优先：人工设定后，commit 的自动采样不再覆盖它；每 30 章对比一次，漂移会写审查报告并报警。'
       + '与「状态」的区别：状态记「发生了什么」，记忆记「怎么写更好」。'
       + '沉淀过的经验会自动出现在后续每章的写作任务书里。'
-      + '当用户说「记住这个写法 / 以后都这样写 / 上次那个教训 / 读者反馈说要改」时使用。',
+      + '当用户说「记住这个写法 / 以后都这样写 / 上次那个教训 / 读者反馈说要改 / 文风就按这个基准」时使用。',
     {
-      action: { type: 'string', enum: ['learn', 'recall', 'stats'], description: '要执行的动作。' },
+      action: { type: 'string', enum: ['learn', 'recall', 'stats', 'baseline'], description: '要执行的动作。' },
       kind: {
         type: 'string',
         enum: MEMORY_KINDS,
         description: '记忆类型：style=文风 / technique=写法 / setting=设定约定 / feedback=读者编辑反馈 / character=人物把握。',
       },
       title: { type: 'string', description: '一句话概括这条经验（learn 必填）。' },
-      content: { type: 'string', description: '具体怎么做（learn 必填）。' },
+      content: { type: 'string', description: '具体怎么做（learn 必填）。baseline 时：JSON 指标（如 {"avgSentence":18,"dialogueRatio":0.35}）或 auto（从正文重建）；留空等同 auto。' },
       tags: { type: 'array', items: { type: 'string' }, description: '标签，便于检索。' },
       chapter: { type: 'number', description: '这条经验来自第几章（可选）。' },
       query: { type: 'string', description: '检索关键词（recall 时用）。' },
@@ -704,7 +799,29 @@ export const TOOL_DEFS = [
 
       if (action === 'learn') {
         const result = await learnMemory(dir, args);
-        return `已记住【${result.kindLabel}】${result.title}\n\n累计 ${result.total} 条写作记忆，后续每章的写作任务书都会带上。${bookLine(config, id, dir)}`;
+        let extra = '';
+        if (result.baseline) {
+          if (result.baseline.error) {
+            extra = `\n\n⚠ 文风基准未更新：${result.baseline.error}`;
+          } else {
+            const b = result.baseline.baseline;
+            extra = `\n\n文风基准已按这条记忆${result.baseline.kind === 'rebuild' ? '从正文重建' : '人工覆盖'}`
+              + `（第 ${b.calibratedAtChapter} 章，source=${b.source}）。`;
+          }
+        }
+        return `已记住【${result.kindLabel}】${result.title}\n\n累计 ${result.total} 条写作记忆，后续每章的写作任务书都会带上。${extra}\n\n${bookLine(config, id, dir)}`;
+      }
+      if (action === 'baseline') {
+        const result = await setStyleBaseline(dir, args);
+        const b = result.baseline;
+        const metrics = Object.entries(b.metrics ?? {})
+          .filter(([k]) => !['sentences', 'paragraphs'].includes(k))
+          .map(([k, v]) => `${k}=${v}`)
+          .join('，');
+        return `文风基准已${result.kind === 'rebuild' ? '从正文重建' : '按人工值设定'}：`
+          + `第 ${b.calibratedAtChapter} 章（source=${b.source}）\n指标：${metrics}\n`
+          + `之后每 ${STYLE_THRESHOLDS.compareEvery} 章对比一次；漂移会写 .webnovel/reviews/style-chNNNN.json 并在提交/状态/审查里报警。`
+          + `\n\n${bookLine(config, id, dir)}`;
       }
       if (action === 'recall') {
         const result = recallMemory(dir, args);
@@ -718,7 +835,7 @@ export const TOOL_DEFS = [
           .map(([k, n]) => `- ${MEMORY_KIND_LABEL[k] ?? k}：${n} 条`);
         return [`写作记忆共 ${stats.total} 条：`, ...kindLines, '', bookLine(config, id, dir)].join('\n');
       }
-      throw new Error(`未知的 action：${action}。可用：learn / recall / stats`);
+      throw new Error(`未知的 action：${action}。可用：learn / recall / stats / baseline`);
     },
   ),
 
@@ -726,19 +843,24 @@ export const TOOL_DEFS = [
     'webnovel_doctor',
     '机器态体检与重建：action=check（默认）把提交链完整重放一遍，逐项对账状态卡/索引/伏笔台账/'
       + '正文文件/摘要文件，并扫出骨架里未填的占位符；action=rebuild 从提交链重放重建机器态'
-      + '（重建前自动备份到 .webnovel/trash/，记忆与审查记录不受影响）。'
+      + '（重建前自动备份到 .webnovel/trash/，记忆与审查记录不受影响）；'
+      + 'action=reconcile 把「提交链之外人工维护的数据」登记成迁移基线（老书升级用，不删数据）。'
       + '提交链是唯一事实来源——怀疑「系统记的」和「实际写过的」对不上时用。'
-      + '当用户说「记的怎么对不上 / 状态好像不对 / 帮我校验一下记录 / 数据是不是坏了」时使用。'
+      + '当用户说「记的怎么对不上 / 状态好像不对 / 帮我校验一下记录 / 数据是不是坏了 / 老书升级对账」时使用。'
       + '注意：检查大纲/正文内容的质量用 webnovel_review，这个工具只管机器态账目。',
     {
       action: {
         type: 'string',
-        enum: ['check', 'rebuild'],
-        description: 'check=只读体检（默认）/ rebuild=重放重建机器态（写操作，有备份，需 confirm=true 才会执行）。',
+        enum: ['check', 'rebuild', 'reconcile'],
+        description: 'check=只读体检（默认）/ rebuild=重放重建机器态（写操作，有备份，需 confirm=true 才会执行）/ reconcile=把当前人工维护的机器态登记为迁移基线（写操作，有备份，需 confirm=true；只修正文路径/字数/进度这类客观引用，不掩盖缺章多账）。',
       },
       confirm: {
         type: 'boolean',
-        description: '重建的确认门：必须显式传 true 才会真正重建（防误触）。check 不需要。',
+        description: '写操作（rebuild / reconcile）的确认门：必须显式传 true 才会执行（防误触）。check 不需要。',
+      },
+      reason: {
+        type: 'string',
+        description: '仅 reconcile：登记迁移基线的原因（写进基线文件，便于以后回查，如「手工补了 18-19 章人物备注与 4 条专名」）。',
       },
     },
     [],
@@ -753,7 +875,11 @@ export const TOOL_DEFS = [
         const result = await doctorRebuild(dir, { confirm: args.confirm === true });
         return [...result.lines, '', bookLine(config, id, dir)].join('\n');
       }
-      throw new Error(`未知的 action：${action}。可用：check / rebuild`);
+      if (action === 'reconcile') {
+        const result = await doctorReconcile(dir, { confirm: args.confirm === true, reason: args.reason });
+        return [...result.lines, '', bookLine(config, id, dir)].join('\n');
+      }
+      throw new Error(`未知的 action：${action}。可用：check / rebuild / reconcile`);
     },
   ),
 

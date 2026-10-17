@@ -1,6 +1,6 @@
 # webnovel-mcp · 技术架构
 
-> 版本 v1.0.0 ｜ 形态：一个 MCP 服务（HTTP Streamable + stdio 双模式）｜ 零运行时依赖
+> 版本 v1.4.0 ｜ 形态：一个 MCP 服务（HTTP Streamable + stdio 双模式）｜ 零运行时依赖
 
 ---
 
@@ -10,9 +10,10 @@
 server.mjs            HTTP / stdio 入口（node:http，零依赖）
 mcp/protocol.mjs      JSON-RPC 分发（initialize/tools/prompts/ping + 版本协商）
 mcp/prompts.mjs       6 个写作流程提示词（复用 mcp/skills-src.mjs）
-mcp/tools.mjs         11 个 MCP 工具 + 书库定位与路径守卫
+mcp/tools.mjs         12 个 MCP 工具 + 书库定位与路径守卫
 mcp/tool-names.mjs    工具名清单（契约测试的基准）
 lib/features/         领域逻辑：context / commit / query / pacing / review / memory / status / outline / doctor
+                      + craft / structure / style / knowledge / plagiarism / ledger / dossier / terms / parts
 lib/core/             存储（原子写+锁+迁移）、状态读写、项目骨架、路径守卫
 lib/util.js           纯函数
 ```
@@ -60,16 +61,26 @@ bookId → /^[_A-Za-z0-9\u4e00-\u9fa5][-\w\u4e00-\u9fa5]{0,63}$/   # 中英文�
 ```
 真源（人写）      设定集/ 大纲/ 正文/          → 随时可改、可 git
 投影（机器算）    .webnovel/{state,index,foreshadowing,memory,reviews}/  → 删了可从提交链重建
+基线（半真源）    .webnovel/commits/_baseline.json（老书迁移起点）
+                  .webnovel/style-baseline.json（文风锚点）
 审计（只增不改）  .webnovel/commits/chNNNN.json
 ```
 
 写作闭环：`webnovel_context`（按章组装任务书：章纲/前情/主角状态/角色/到期伏笔/
-时间线/节奏/沉淀经验/硬约束）→ 写正文 → `webnovel_review`（六维一致性，结果落盘为
+时间线/节奏/沉淀经验/硬约束）→ 写正文 → `webnovel_review`（九维审查：一致性 /
+信息隔离 / 文风 / 连贯 / 节奏 / 大纲 / 伏笔 / 追读力 / 可选外部查重，结果落盘为
 审查记录）→ `webnovel_commit`（凭审查记录放行，把本章事实增量写进投影层）。
 
 **提交链是唯一事实来源**：每条记录的 `deltas` 是「该章累计生效的全部事实」
 （重提合并、修正延续），`webnovel_doctor` 把链完整重放后与现役机器态逐项对账——
 重放与实时提交共用同一核心（`commit.js` 的 `applyChapterFacts`），两边永不漂移。
+手工接管的老书由 `webnovel_doctor action=reconcile` 写一条 `state-baseline` 记录
+（`basedOnChapter` + 当时的 state/index/ledger/terms），重放时先铺基线再叠章节，
+所以老设定不会被「链上没见过」判成脏数据。注意它不是 `webnovel_memory action=baseline`
+——后者管的是文风基准，两回事。
+
+`review` 的异步外部查重留在工具层（`plagiarism.js` 调 websearch MCP），审查本体
+保持同步可测；没配 `WEBNOVEL_SEARCH_URL` 时返回「未执行」而不是静默通过。
 
 ## 5. 部署形态
 
@@ -77,7 +88,7 @@ bookId → /^[_A-Za-z0-9\u4e00-\u9fa5][-\w\u4e00-\u9fa5]{0,63}$/   # 中英文�
 Termux 层（进 proot 会多一层 --kill-on-exit 的坑）
 ~/webnovel-mcp/
 ├── server.mjs / mcp/ / lib/ / deploy/run.sh
-├── config.env        权限 600：ROOT / PORT / BIND / TOKEN / MAX_BODY
+├── config.env        权限 600：ROOT / PORT / BIND / TOKEN / MAX_BODY（+ 可选 SEARCH_URL/TOKEN/TIMEOUT_MS）
 ├── books/            书库
 └── logs →  ~/logs/webnovel-mcp.log
 
@@ -86,8 +97,9 @@ $PREFIX/bin/webnovel-mcp-ctl      status | restart | stop | logs | token | books
 $PREFIX/bin/ubuntu-autostart      开机自启登记（幂等）
 ```
 
-`scripts/deploy-vivo.sh` 一条命令完成：打包 → ssh 传包 → 写 config.env（首次生成 token，
-重复部署**沿用旧 token**）→ 装 guard/ctl → 启动 → 健康检查 → 登记自启 → 打印连接器配置。
+`scripts/deploy-vivo.sh` 一条命令完成：打包（**排除 config.env**）→ ssh 传包 →
+保留/补全 config.env（首次生成 token；已有则备份后只追加缺的键，**绝不重写**）→
+装 guard/ctl → 启动 → 健康检查 → 登记自启 → 打印连接器配置（token 打码）。
 目标机 `VIVO_HOST` / 登录用户 `VIVO_USER` 必须显式给，缺了 `exit 2`，没有默认值。
 
 `webnovel-mcp-ctl clean` 是验收测试书的唯一清账出口：bookId 过合法性与真实路径检查（和
@@ -102,7 +114,8 @@ $PREFIX/bin/ubuntu-autostart      开机自启登记（幂等）
 | 协议 | `test/protocol.test.mjs` | 真起 HTTP 服务走 MCP：握手、工具清单、通知、错误码、鉴权、并发、符号链接、状态尾 |
 | 契约 | `test/contract.test.mjs` | 工具名/ schema / bookId 规则 / 提示词引用 四者不许脱节 |
 | 护栏 | `test/guard.test.mjs` | 旧章重提防护、审查落盘与提交门禁（含 force 逃生门与留痕） |
-| 体检 | `test/doctor.test.mjs` | 提交链重放对账、重建（确认门/备份/空链拒绝）、修正记录可重放 |
+| 体检 | `test/doctor.test.mjs` `test/doctor-reconcile.test.mjs` | 提交链重放对账、重建（确认门/备份/空链拒绝）、修正记录可重放、迁移基线与自动修复回滚 |
+| 审查增量 | `test/knowledge.test.mjs` `test/style.test.mjs` `test/ownership-extended.test.mjs` `test/plagiarism.test.mjs` `test/structure-adjust.test.mjs` `test/ledger-hint.test.mjs` | 信息隔离、文风漂移/AI 味、3.6⑧ 三类归属、外部查重（含未配置）、2.1 差异说明、伏笔 hinted 证据与层级 |
 | 自足 | `test/selfcontained.test.mjs` `test/stdio.test.mjs` | 对外文案零测试书泄露、描述自足性、裸客户端 stdio 全流程 |
 | 黑盒 | `scripts/live-check.mjs` `scenario-check.mjs` `robustness-check.mjs` | 对**已部署实例**以真实客户端身份跑：写作闭环、场景不崩、长文/并发/多书 |
 

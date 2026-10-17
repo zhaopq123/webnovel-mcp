@@ -1,6 +1,6 @@
 ---
 name: webnovel-reviewer
-description: 连载小说独立只读质检：复跑字数/章号/AI 味/查重、对账设定与事实链、按 3.6⑧ 核对台词归属、查手记闭环与读感，把红黄绿结论追加进当日手记。只报不修。触发词：验收今天的章节、全量验收、质检、审一下这章、这周有没有问题、有没有崩设定、一致性检查。
+description: 连载小说独立只读质检：复跑字数/章号/AI 味/查重、对账设定与事实链（含状态/持有/信息隔离）、按 3.6⑧ 核对台词与归属、查手记闭环与读感，把红黄绿结论追加进当日手记。只报不修。触发词：验收今天的章节、全量验收、质检、审一下这章、这周有没有问题、有没有崩设定、一致性检查。
 ---
 
 # 网文质检员（SKILL 版）
@@ -17,12 +17,16 @@ description: 连载小说独立只读质检：复跑字数/章号/AI 味/查重�
   不是死数）：≥目标 🟢；≥七成 🟡；<七成 🔴（打回扩写）。
 - **R2 章号**：`status` 的已写章数与当日章号对；跳号/重号 🔴。
 - **R3 AI 味**：`craft action=get id=15.5` 取权威清单，用 `query kind=search` 逐词扫正文；
-  命中当日正文 🔴，命中设定/大纲只提示；对话书面腔按 `id=15.3.3` 抽查。
+  命中当日正文 🔴，命中设定/大纲只提示；对话书面腔按 `id=15.3.3` 抽查。写手 `review`
+  返回的 `ai-flavor` / `style`（文风漂移）结论一并核对，仍按清单复扫。
 - **R4 查重**：首段 + 最独特的 3 条比喻 + 手记里改过的表达，过 websearch；撞车 🔴；
-  引擎不可达 🟡，不阻塞。
+  引擎不可达 🟡，不阻塞。写手开了 `plagiarism=true` 就直接核对其命中/未执行结论。
 - **R5 设定一致性**：对账 deltas 与设定集，优先能力边界、主角伤势/境界、已死角色；
   **3.6⑧**：`query kind=character` 看 knows/notKnows/mistaken——说了登记为「不知道」的事 🔴，
-  别人的秘密被非主人说出 🟡，已登记 knows 的不许再响；专名未登记记 🟡。
+  别人的秘密被非主人说出 🟡，已登记 knows 的不许再响。v1.4.0 起 `condition` / `items`
+  也机器核（骨折还跑跳、丢了的东西还拿出来用 🔴；简称/长名遮蔽也查）。
+  **信息隔离**：本章有 `pov` 时，角色说出只有别的视角才知道的事 🔴（核对 review 引的原文证据）。
+  专名未登记记 🟡。
 - **R6 事实链**：`query kind=chapter` 的五类 deltas（主角/角色/伏笔/时间线/专名）与正文对；
   为空或漏关键事实 🔴。
 - **R7 手记**：`outline action=read scope=note`（往日加 `date=`）查六段齐全与 🔴 已清；
@@ -53,7 +57,8 @@ description: 连载小说独立只读质检：复跑字数/章号/AI 味/查重�
 
 允许：`books` / `status` / `query` / `context` / `pacing` / `craft`（只读 action）/
 `doctor action=check` / `outline action=read|write_note` / `memory action=learn kind=feedback`。
-禁止：`init` / `commit` / `review` / `doctor action=rebuild` / 任何正文或设定写入。
+禁止：`init` / `commit` / `review` / `doctor action=reconcile|rebuild` / `memory action=baseline` /
+任何正文或设定写入。
 发现 P1 也不修，列进报告让作者决定。
 
 ## 前提

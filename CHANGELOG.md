@@ -1,5 +1,69 @@
 # 变更记录
 
+## [1.4.0] - 2026-10-17
+
+这版的主题：**把「未闭环」清零**。老书可以带着提交链之外的人工数据安全升级；
+审查补上归属核对、AI 味与外部查重；提示词第 8.2 节的信息隔离、第 2.1 节的体量调整说明，
+从「靠 Agent 自觉」变成工具能机械核对或直说的东西。
+
+### 新增
+
+- **doctor `action=reconcile` + 迁移基线**：老书里手工维护的人物卡、伏笔台账、专名不再被当成
+  「对不上账」逼着删。reconcile 先只读体检确认确有可修差异，再备份（`.webnovel/trash/`），
+  只修客观引用（失效正文路径按章号找回、索引字数/标题、进度章号/总字数），最后把当前
+  state / index / ledger / terms 登记为 `.webnovel/commits/_baseline.json`（`kind=state-baseline`、
+  `basedOnChapter`、`reason`）。重放时基线按章号整份接管，之后的新章节继续在基线上叠加；
+  rebuild 不再丢人工数据。索引缺章/多章、提交记录损坏、正文缺失、坏基线一律拒绝——
+  reconcile 不掩盖数据缺失。
+- **2.1 目标体量调整说明**：已有书重复 `init` 改 `targetWords` / `targetChapters` 时，
+  输出「旧值 → 新值」及部数、每部章数区间、卷数、大层级、洋葱层、悬念层、弧光段、归档次数的
+  变化；同值重跑、未传目标值、老项目缺字段三种情况静默，不误报。
+- **`hinted` 证据核对 + 悬念层级递进**：`deltas.foreshadowing.hinted` 接受
+  `{ name|id, evidence }`；evidence 必须是本章正文（去空白）的子串，找不到就拒绝登记并点名。
+  旧字符串格式继续兼容但提示补证据。`ledger` 新增 `suspense-layer-skip`：
+  启用的悬念层必须按 短→卷→部→跨部→全书 逐级开，1 部书禁用跨部/全书层。
+- **文风漂移自动对比（15.6）**：新增 `lib/features/style.js`，指标为平均句长、句长标准差、
+  平均段长、对话占比、标点密度；首次提交自动建 `.webnovel/style-baseline.json`（前 5 章取平均），
+  每 30 章对比一次，超阈值写 `.webnovel/reviews/style-chNNNN.json` 并在 commit / status / review
+  报警。`webnovel_memory action=baseline` 支持人工设定或从正文重建，人工基准优先。
+- **多视角信息隔离（8.2）**：提交支持 `pov` 与 `deltas.knowledge[{who,fact,mode,witnessedBy?,toldBy?,evidence?}]`。
+  `learn` 必须有目击或转述来源，转述人必须自己先知道；`use` / `reveal` 必须已登记 `knows`
+  且不在 `notKnows`。违反 review 🔴，commit 默认拦截（`force` 可过但不写入被拒条目）；
+  knows/notKnows 随提交链跨章重放。
+- **3.6⑧ 剩余三类归属**：角色卡新增 `condition`（伤病状态）与 `items[]`（持有物品）。
+  伤病只在「角色名与冲突动作同句」时报红（按伤处匹配动作，已愈不算）；物品在「使用动词 +
+  物品名 + 命名角色」同句、且当场没有登记持有者时告警；泛称句、无字段老卡不判；
+  长名遮蔽（「陈三娘」不算「陈三」）。
+- **审查新增 AI 味与外部查重**：`ai-flavor` 维度用四类启发式（套话黑名单密度、句长过于均匀、
+  抽象名词链、连续「不是 A 而是 B」），样本 <400 字不判。`webnovel_review plagiarism=true`
+  从正文抽 10–16 字特征句（专名/低频词优先），经 `WEBNOVEL_SEARCH_URL` 调 websearch MCP；
+  ≥10 字连续相同判命中，有结果但无连续相同记「待人工确认」；未配置/不可达明确写
+  「未执行，不等于通过」。手写零依赖 Streamable HTTP 客户端，支持 JSON / SSE。
+
+### 改进
+
+- **部署脚本不覆盖 `config.env`**：`scripts/deploy-vivo.sh` 打包时排除 `config.env`；
+  线上已有配置只补缺失键、不改现值，并在改动前留 `.bak`。此前整份重写会丢掉后加的
+  `WEBNOVEL_SEARCH_*`，属于升级事故隐患。
+- **审查输出**：新增 `信息隔离` / `AI 味` / `外部查重` 维度；审查记录落盘查重摘要
+  （`executed / reason / phrases / searched / hits / pending / partial`）。
+- **工具描述与 schema**：`webnovel_commit` 补 `condition` / `items` / `pov` / `knowledge`；
+  `webnovel_review` 补 `plagiarism`；`webnovel_doctor` 补 `reconcile` 与 `reason`；
+  `webnovel_memory` 的 action 列表补 `baseline`。
+
+### 测试
+
+- 全量 **380/380 绿**（14.7s），连跑两轮无抖动；升级前 316 条全部保留。
+- 新增 7 个测试文件 64 条：`doctor-reconcile`（10）、`structure-adjust`（4）、
+  `ledger-hint`（8）、`style`（7）、`knowledge`（8）、`ownership-extended`（15）、
+  `plagiarism`（12）。
+- 四道门禁全绿：`build-prompt-catalog --check`（19 节 / 92 切片 / 22181 字）、
+  `check-rule-duplication`（跨文件重复 0）、`build-dist --check`（逐字符一致），
+  三个 `--selftest` 均能自己变红。
+- 本地黑盒：`live-check` 28/28、`scenario-check` 20/20、`robustness-check` 6/6；
+  另做老数据演练（手工人物/台账/专名 + 坏索引 → check 红 → reconcile → 绿 →
+  rebuild 保留 → 再提交一章仍绿，正文 sha 不变）。
+
 ## [1.3.0] - 2026-10-17
 
 这版的主题：**把 19 节创作提示词变成可执行的数据模型**。原文逐字入库、构建成 92 个切片，
