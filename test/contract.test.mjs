@@ -129,6 +129,21 @@ test('契约 · 全仓库文档（含未来的 skills/ 与 prompt/）引用的�
   assert.ok(TOOL_NAMES.length >= 12, `工具数 ${TOOL_NAMES.length} 少于 12，注册表或本断言过期了`);
 });
 
+test('契约 · README 的工具数与工具表和注册表逐一对应（少一行不再靠人记住）', () => {
+  const root = path.resolve(fileURLToPath(import.meta.url), '..', '..');
+  const readme = readFileSync(path.join(root, 'README.md'), 'utf8');
+  const heading = /^## (\d+) 个工具\s*$/m.exec(readme);
+  assert.ok(heading, 'README 里找不到「N 个工具」标题——加了工具请连本断言一起改，别让它假绿');
+  assert.equal(Number(heading[1]), TOOL_NAMES.length,
+    `README 标题写 ${heading[1]} 个，注册表是 ${TOOL_NAMES.length} 个（新增/改名工具时标题必须跟着改）`);
+
+  const rows = [...readme.matchAll(/^\| `(webnovel_[a-z_]+)`\s*\|/gm)].map((m) => m[1]);
+  assert.equal(new Set(rows).size, rows.length, `README 工具表有重复行：${rows.join(',')}`);
+  assert.deepEqual(rows.filter((n) => !TOOL_NAMES.includes(n)), [], 'README 表里列了不存在的工具');
+  assert.deepEqual(TOOL_NAMES.filter((n) => !rows.includes(n)), [], '有工具没进 README 的表（读者不知道有这条路）');
+  assert.equal(rows.length, TOOL_NAMES.length);
+});
+
 test('契约 · 提示词 6 个、字段完整', () => {
   assert.equal(PROMPTS.length, 6);
   for (const p of PROMPTS) {

@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { initProject } from '../lib/core/project.js';
 import { FILES } from '../lib/core/paths.js';
@@ -207,6 +208,52 @@ test('专名 · 泛称/情态词/场所词一个都不许报（误报会毁掉�
 test('专名 · 只出现一次的地名不报（一笔带过的位置感太强，等重复提及再提醒）', () => {
   assert.deepEqual(detectUnregisteredTerms('三人来到幽冥宗山门外。', new Set()), []);
   assert.equal(detectUnregisteredTerms('三人来到幽冥宗山门外。\n\n幽冥宗的弟子拦住了他们。', new Set()).length, 1);
+});
+
+/* ------------------------------------------------------------------ *
+ * C4 / C5（2026-10-17 实测提出的两条）：
+ *   C4 移动锚点词表缺「赶到」——「两人赶到幽冥宗」是网文最高频的一句，链上却没人提醒；
+ *   C5 文件头「已知漏报」清单少写了一条真边界（有重复但无移动动词不报）。
+ * 两条一起测：扩词表要有回归用例，写进清单的边界也要有用例——
+ * 清单说「不报」而代码报了，同样是红（注释过期比没注释更坏）。
+ * ------------------------------------------------------------------ */
+
+test('专名 · 移动锚点覆盖「赶到/奔赴/赶赴/退回/折返/撤到/移到/迁到」（C4）', () => {
+  const verbs = ['赶到', '奔赴', '赶赴', '退回', '折返', '撤到', '移到', '迁到'];
+  for (const verb of verbs) {
+    const text = `两人${verb}幽冥宗。\n\n幽冥宗的山门紧闭。`;
+    const hits = detectUnregisteredTerms(text, new Set());
+    assert.equal(hits.length, 1, `「${verb}幽冥宗」没命中候选：${JSON.stringify(hits)}`);
+    assert.equal(hits[0].name, '幽冥宗', `「${verb}」取到的名字不对：${hits[0].name}`);
+    assert.equal(hits[0].type, 'org', `宗/派/阁这类后缀必须判成组织，实测 ${hits[0].type}`);
+  }
+  // 用户原话那一句，逐字回归
+  const hit = detectUnregisteredTerms('两人赶到幽冥宗。幽冥宗的山门紧闭。', new Set());
+  assert.equal(hit.length, 1, 'C4 报的那句实测没有候选');
+  assert.equal(hit[0].type, 'org');
+});
+
+test('专名 · 文件头「已知漏报」清单与实现逐条对得上（C5）', () => {
+  const src = fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'features', 'terms.js'),
+    'utf8',
+  );
+  const header = src.slice(0, src.indexOf('\nimport '));
+  for (const phrase of ['所有格', '两字地名', 'minRepeat', 'PLACE_INTRODUCE', '名叫']) {
+    assert.ok(header.includes(phrase), `已知漏报清单没写「${phrase}」这条边界（注释与实现必须一起改）`);
+  }
+
+  // ① 有重复、但前面没有移动·方位动词（所有格/偏正写法）→ 清单说不报，代码也不能报
+  assert.deepEqual(detectUnregisteredTerms('幽冥宗的执事拦在门口。\n\n幽冥宗的山门紧闭。', new Set()), [],
+    '所有格写法本不在覆盖内却报了＝清单过期或锚点失效');
+  // ② 两字地名 → pickPlace 从 3 字起切，清单说了不覆盖
+  assert.deepEqual(detectUnregisteredTerms('三人来到楚城。\n\n楚城的门开了。', new Set()), [],
+    '两字地名不在覆盖内（清单已声明），报了就是实现与清单不符');
+  // ③ 物品/功法名走「名叫X」→ 通称锚点不认，清单已声明；但人名那条路认
+  assert.deepEqual(detectUnregisteredTerms('他名叫洗髓丹。洗髓丹的名号传开了。', new Set()).map((h) => h.name), [],
+    '通称锚点只认「名为/叫做」，名叫X 报出物品＝清单过期');
+  assert.ok(detectUnregisteredTerms('此物名为洗髓丹。\n\n名为洗髓丹的丹方失传多年。', new Set()).length >= 1,
+    '「名为X」这条路是通称锚点的正路，不能哑');
 });
 
 /* ------------------------------------------------------------------ *

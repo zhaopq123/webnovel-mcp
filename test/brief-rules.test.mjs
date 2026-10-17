@@ -182,6 +182,88 @@ test('优先级表引用的切片都必须真实存在且在第十五/三/六/�
   }
 });
 
+/* ------------------------------------------------------------------ *
+ * C1：预算装配的语义是「按优先级截断」，不是「挑能装的装箱」。
+ * 这两件事的差别只在一处：装不下的大规则后面若刚好有个小规则，装箱会把它塞进去——
+ * 于是每章任务书都缺「文字洁净度」这种工具事后查不出来的规则，而表面上一切正常。
+ * 下面几条把语义钉死：改回装箱会当场红。
+ * ------------------------------------------------------------------ */
+
+test('装配 · kept 是优先级表的连续前缀，未带清单是它的补集（不变量，非固定数字）', () => {
+  const { catalog } = loadCatalog();
+  const charsOf = new Map(catalog.units.map((u) => [u.id, u.chars]));
+  const table = BRIEF_PRIORITY.map((p) => p.id);
+  const budgets = [10, 300, 900, 1000, 1500, 2100, 2314, 2315, 2400, 2936, 4082, 99999];
+  for (const budget of budgets) {
+    const r = briefRules(catalog, { maxChars: budget, triggers: [] });
+    const ids = r.kept.map((k) => k.id);
+    // ① 连续前缀：中间不许跳着带（跳着＝装箱）
+    assert.deepEqual(ids, table.slice(0, ids.length), `预算 ${budget}：kept 不是表的连续前缀 → ${ids.join(',')}`);
+    // ② 相对顺序与表一致（用户口径：优先级表相对顺序 == 实际装配相对顺序）
+    assert.deepEqual(ids, table.filter((id) => ids.includes(id)), `预算 ${budget}：kept 相对顺序与优先级表不一致`);
+    // ③ 不超预算
+    assert.ok(r.chars <= budget, `预算 ${budget}：实带 ${r.chars} 字，超了`);
+    // ④ 贪尽：下一条真的装不下（防「提前停」把预算白白浪费掉）
+    if (ids.length < table.length) {
+      const next = charsOf.get(table[ids.length]);
+      assert.ok(r.chars + next > budget,
+        `预算 ${budget}：下一条 ${table[ids.length]}(${next} 字) 明明装得下却没带 = 截断点算错`);
+    }
+    // ⑤ 未带清单＝截断点起的整条尾巴，含「装不下的那一条」本身，一条不许静默消失
+    assert.deepEqual(r.dropped.map((d) => d.id), table.slice(ids.length),
+      `预算 ${budget}：未带清单与截断点后的条目不符`);
+  }
+});
+
+test('装配 · 装不下的高优先规则，不许被排在它后面的小规则顶替', () => {
+  const { catalog } = loadCatalog();
+  const r = briefRules(catalog, { maxChars: 2100, triggers: [] });
+  const ids = r.kept.map((k) => k.id);
+  const chars = new Map(catalog.units.map((u) => [u.id, u.chars]));
+  assert.ok(!ids.includes('15.7'), `2100 装不下 15.7（${chars.get('15.7')} 字）是事实，别硬塞`);
+  assert.ok(!ids.includes('15.6'),
+    `15.6（${chars.get('15.6')} 字）单独装得下，但它排在 15.7 之后——带它进来就是装箱语义（C1 的原始缺陷）`);
+  assert.ok(r.dropped.some((d) => d.id === '15.7'), '15.7 没进未带清单 = 静默丢规则');
+});
+
+test('装配 · 默认预算必须真的带上 15.7 文字洁净度（C1 验收）', () => {
+  const { catalog } = loadCatalog();
+  const r = briefRules(catalog, { maxChars: BRIEF_DEFAULT_CHARS, triggers: [] });
+  assert.ok(r.kept.some((k) => k.id === '15.7'),
+    `默认预算 ${BRIEF_DEFAULT_CHARS} 字没带上 15.7（洁净度）——工具事后查不出这条，只能写时守`);
+  assert.ok(r.chars <= BRIEF_DEFAULT_CHARS, `实带 ${r.chars} 字超过默认预算`);
+  // 每章固定成本上限：预算是每章都付的钱，调大必须是有意识的决定（改坏会红）
+  assert.ok(BRIEF_DEFAULT_CHARS <= 2600, `默认预算涨到 ${BRIEF_DEFAULT_CHARS} 字，每章固定成本失控`);
+});
+
+test('装配 · 报告节点章带第十七节，被挤掉的尾部规则要在任务书里点名指路', async () => {
+  const { catalog } = loadCatalog();
+  const r = briefRules(catalog, { maxChars: BRIEF_DEFAULT_CHARS, triggers: briefTriggers({ batchReport: true }) });
+  assert.ok(r.kept.some((k) => k.id === '17'), '报告节点章必须带第十七节');
+  const missing = r.dropped.map((d) => d.id);
+  assert.ok(missing.includes('15.7'), '加塞挤掉了 15.7——可以，但必须进未带清单');
+  const { root, config } = await freshBook();
+  try {
+    const md = await applyTool('webnovel_context', { bookId: 'b1', chapter: 10 }, config);
+    assert.match(md, /因超出预算未带/, '截断了却没在任务书里说');
+    for (const id of missing) {
+      assert.match(md, new RegExp(id.replace('.', '\\.')), `未带清单缺少 ${id}`);
+    }
+    assert.match(md, /webnovel_craft action=get/, '未带规则没给取回路径（等于让模型执行一条它拿不到的规则）');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('装配 · 表里写了不存在的切片，无论预算多大都当场炸', () => {
+  const { catalog } = loadCatalog();
+  // 预算只有 10 字：一条都装不下。低优先级的 id 打错字也必须被发现，否则它会永远静默消失
+  assert.throws(() => briefRules(catalog, { maxChars: 10, triggers: [{ id: '99.9', why: '不存在' }] }),
+    /引用了不存在的切片/);
+  assert.throws(() => briefRules(catalog, { maxChars: 99999, triggers: [{ id: '99.9', why: '不存在' }] }),
+    /引用了不存在的切片/);
+});
+
 test('门禁 · 规则正文全仓库只有一份（check-rule-duplication）', () => {
   const out = execFileSync(process.execPath, [DUP], { encoding: 'utf8' });
   assert.match(out, /跨文件重复条文数=0/, `发现第二份规则正文：\n${out}`);

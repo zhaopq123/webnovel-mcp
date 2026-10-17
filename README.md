@@ -1,5 +1,7 @@
 # webnovel-mcp · 长篇网文写作助手（MCP）
 
+[![CI](https://github.com/zhaopq123/webnovel-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/zhaopq123/webnovel-mcp/actions/workflows/ci.yml)
+
 > **你负责想故事，我负责记住所有事。**
 > 给 AI 写作加上「不会忘的设定库」：写作任务书 + 章节提交链 + 伏笔台账 + 节奏体检 + 一致性审查。
 > 零运行时依赖（只用 Node 内置模块），项目是纯文本，数据全在你自己的机器上。
@@ -47,19 +49,20 @@
 
 ---
 
-## 11 个工具
+## 12 个工具
 
 | 工具 | 什么时候用 |
 |---|---|
 | `webnovel_init` | 开新书（建骨架） |
 | `webnovel_status` | 「写到哪了 / 接下来做什么」 |
 | `webnovel_books` | 书库里有哪几本书 / 切换书 |
-| `webnovel_outline` | 定总纲 / 卷纲 / **章纲** / 保存正文 |
+| `webnovel_outline` | 定总纲 / 卷纲 / **章纲** / 保存正文 / 当日手记 |
 | `webnovel_context` | **动笔前**拿写作任务书 |
 | `webnovel_commit` | **写完后**提交事实增量 |
-| `webnovel_query` | 查角色 / 伏笔 / 设定 / 时间线 / 全文检索 |
+| `webnovel_query` | 查角色 / 伏笔 / 设定 / 时间线 / 专名 / 全文检索 |
 | `webnovel_pacing` | 节奏体检（三线占比与断档） |
 | `webnovel_review` | 审查某一章（六维一致性） |
+| `webnovel_craft` | 查《创作提示词》原文（地图 / 按节取 / 按阶段装配） |
 | `webnovel_memory` | 沉淀 / 检索写作经验 |
 | `webnovel_doctor` | 机器态体检 / 从提交链重放重建 |
 
@@ -117,7 +120,7 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 | `WEBNOVEL_MAX_BODY` | 32MB | 单次请求体上限（提交整章正文用得到） |
 | `WEBNOVEL_STATUS_FOOTER` | `full` | 工具返回末尾的状态行；设 `off` 关掉（只留「（书：id）」省 token） |
 | `WEBNOVEL_BRIEF_RULES` | `on` | 任务书里的「本章必守」提示词切片；设 `off` 整块不带 |
-| `WEBNOVEL_BRIEF_RULES_CHARS` | `2100` | 上面那块切片的字数预算（上限 6000）；嫌贵调小 |
+| `WEBNOVEL_BRIEF_RULES_CHARS` | `2400` | 上面那块切片的字数预算（上限 6000）；**按优先级取到装不下为止**，被截掉的会点名并指路 `webnovel_craft`，不会静默丢规则 |
 | `WEBNOVEL_STRUCTURE` | `summary` | `webnovel_status` 的体量结构换算块详略：`summary` 三行 / `full` 整张表 / `off` 不带（单次调用可用 `structure=` 参数覆盖） |
 
 ---
@@ -158,8 +161,17 @@ books/我的小说/
 
 ## 开发与测试
 
+**提交前必跑三条**（`.github/workflows/ci.yml` 跑的就是这几条，本地绿了再推）：
+
 ```bash
-npm test                                  # = node --test（自动发现 test/ 下全部文件）
+npm test                                        # ① 全部单测（自动发现 test/ 下文件）
+node scripts/build-prompt-catalog.mjs --check    # ② 提示词原文 ↔ 切片库 ↔ sha 锁三者一致
+node scripts/check-rule-duplication.mjs          # ③ 规则正文全仓库只有一份（跨文件重复=0）
+```
+
+```bash
+node scripts/build-prompt-catalog.mjs --selftest      # 判据自己能变红（防空转的绿）
+node scripts/check-rule-duplication.mjs --selftest    # 同上
 node --test test/state.test.js            # 只想跑一个文件
 
 node scripts/live-check.mjs http://<主机>:8600/mcp <token>       # 黑盒验收 18 项

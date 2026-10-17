@@ -1,0 +1,44 @@
+name: CI
+
+# 为什么要这条流水线：仓库零依赖、判据全在本地跑得起来，「我这边是绿的」不该是唯一的证据。
+# 三条硬口径的闸门都在这里（单测 / 提示词切片与原文同步 / 规则正文只有一份），
+# 少跑一条就等于把口径漂移留到下一轮上线才发现。
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Node 18 已于 2025-04-30 EOL，CI 只跑仍在维护的 20/22。
+    # package.json 的 engines 仍写 >=18，那是给自托管老机器的下限，不代表 CI 覆盖过它。
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 零运行时依赖、零 devDependency：不需要 npm ci，直接进测试。
+      - name: 单测（npm test = node --test 自动发现）
+        run: npm test
+
+      - name: 提示词切片库与原文同步（原文变了没重建 = 红）
+        run: node scripts/build-prompt-catalog.mjs --check
+
+      - name: 切片判据自己能变红（selftest，防空转的绿）
+        run: node scripts/build-prompt-catalog.mjs --selftest
+
+      - name: 规则正文全仓库只有一份（跨文件重复条文 = 红）
+        run: node scripts/check-rule-duplication.mjs
+
+      - name: 重复检测判据自己能变红
+        run: node scripts/check-rule-duplication.mjs --selftest
