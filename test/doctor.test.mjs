@@ -229,6 +229,28 @@ test('重建 · 只重建提交链能推导的部分：卷登记与写作记忆�
   assert.equal(readMemory(root).value.entries.length, 1, '写作记忆不许被动');
 });
 
+test('重建 · 中文书目录也要能备份（回归：cpSync 在 Windows 非 ASCII 路径上会打挂进程）', async () => {
+  // 本机实测：Node 22.23.3 对含中文的源目录调 fs.cpSync(recursive) → 进程直接 fastfail，
+  // try/catch 拦不住、退出码 127。makeBackup 正是「恢复动作」，崩在这里代价最大。
+  // 修法：store.copyTree。这条用例钉住「备份真的产出文件」，改回去就红（而且是整文件红）。
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-体检中文-'));
+  const root = path.join(base, '書架', '中文书名');
+  fs.mkdirSync(root, { recursive: true });
+  initProject(root, { title: '中文书名', genre: '都市', logline: '测试', targetWords: 50_000, targetChapters: 20 });
+  await commitChapter(root, { chapter: 1, title: '第一章', summary: '推开旧宅的门。', strand: 'quest', wordCount: 120 });
+  await commitChapter(root, { chapter: 2, title: '第二章', summary: '门后有脚印。', strand: 'quest', wordCount: 130 });
+
+  const b = await doctorRebuild(root, { confirm: true });
+  const backupAbs = path.join(root, b.backupDir);
+  assert.ok(fs.existsSync(path.join(backupAbs, 'state.json')), '备份里应有 state.json');
+  const summaries = path.join(backupAbs, 'summaries');
+  assert.ok(fs.existsSync(summaries), '备份里应有 summaries/（cpSync 崩在这一步）');
+  assert.deepEqual(fs.readdirSync(summaries).sort(), ['ch0001.md', 'ch0002.md'], '备份的摘要篇数不对');
+  assert.equal(doctorCheck(root).ok, true, '重建后体检应全绿');
+
+  fs.rmSync(base, { recursive: true, force: true });
+});
+
 test('体检 · 历史修正模式的章可被完整重放（修正记录参与对账）', async () => {
   const root = newProject();
   await commitChapter(root, {

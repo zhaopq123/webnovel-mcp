@@ -13,7 +13,7 @@ import {
 } from '../lib/core/paths.js';
 import {
   writeJsonAtomic, readJson, readJsonMigrated, migrate, registerMigration,
-  withProjectLock, writeTextAtomic, readText, exists, removeFile,
+  withProjectLock, writeTextAtomic, readText, exists, removeFile, copyTree,
 } from '../lib/core/store.js';
 
 function tmpdir() {
@@ -178,4 +178,44 @@ test('withProjectLock 清理锁文件', async () => {
   fs.mkdirSync(path.join(dir, '.webnovel'), { recursive: true });
   await withProjectLock(dir, async () => {});
   assert.equal(fs.existsSync(path.join(dir, '.webnovel', '.lock')), false);
+});
+
+/* ---------------- copyTree（备份用目录拷贝） ---------------- */
+
+test('copyTree 递归拷贝并把同名文件计成覆盖（备份重复名不会抛）', () => {
+  const base = tmpdir();
+  const src = path.join(base, 'src');
+  const dst = path.join(base, 'dst');
+  fs.mkdirSync(path.join(src, '子', '孙'), { recursive: true });
+  fs.writeFileSync(path.join(src, 'a.md'), 'A');
+  fs.writeFileSync(path.join(src, '子', 'b.md'), 'B');
+  fs.writeFileSync(path.join(src, '子', '孙', 'c.md'), 'C');
+  assert.equal(copyTree(src, dst), 3, '应报告拷贝了 3 个文件');
+  assert.equal(fs.readFileSync(path.join(dst, '子', '孙', 'c.md'), 'utf8'), 'C');
+
+  // 重跑 = 覆盖，不报错（备份目录带时间戳，但同名文件仍可能撞）
+  fs.writeFileSync(path.join(src, 'a.md'), 'A2');
+  assert.equal(copyTree(src, dst), 3);
+  assert.equal(fs.readFileSync(path.join(dst, 'a.md'), 'utf8'), 'A2');
+});
+
+test('copyTree 源目录不存在时静默返回 0（check 是只读的，不该因为没东西可备而炸）', () => {
+  const base = tmpdir();
+  assert.equal(copyTree(path.join(base, '不存在'), path.join(base, 'dst')), 0);
+  assert.equal(fs.existsSync(path.join(base, 'dst')), false, '不该建出半空目录');
+});
+
+test('copyTree 扛得住中文路径 —— 这条就是它存在的全部理由', () => {
+  // 回归：fs.cpSync(recursive) 在 Windows + 非 ASCII 源路径上会把进程直接打挂
+  // （Node 22.23.3 实测 __fastfail，try/catch 拦不住）。doctor 重建的备份用它，
+  // 而书目录就放在中文工作区里 —— 恢复动作崩在恢复动作上，代价最大。
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-备份中文-'));
+  const src = path.join(base, '摘要目录');
+  fs.mkdirSync(path.join(src, '内层'), { recursive: true });
+  fs.writeFileSync(path.join(src, 'ch0001.md'), '# 第一章\n');
+  fs.writeFileSync(path.join(src, '内层', 'ch0002.md'), '# 第二章\n');
+  const dst = path.join(base, '备份', 'summaries');
+  assert.equal(copyTree(src, dst), 2);
+  assert.equal(fs.readFileSync(path.join(dst, '内层', 'ch0002.md'), 'utf8'), '# 第二章\n');
+  fs.rmSync(base, { recursive: true, force: true });
 });
