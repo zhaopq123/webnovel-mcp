@@ -23,6 +23,9 @@ import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText, readNote,
 } from '../lib/features/outline.js';
+import {
+  writePartOutline, archivePart, readPart, readPartSummary, PART_SUMMARY_MAX_LINES,
+} from '../lib/features/parts.js';
 import { toInt, countWords, wrapTitle } from '../lib/util.js';
 import {
   loadCatalog, craftSections, craftGet, craftBrief, craftMap, craftCheck, renderCheck,
@@ -362,23 +365,28 @@ export const TOOL_DEFS = [
   tool(
     'webnovel_outline',
     '读写大纲与正文，按 action 分派：write_master（写总纲）、write_volume（写第 N 卷卷纲）、'
+      + 'write_part（写第 N 部部纲并登记起止章——多部书在拆卷前先定部）、'
+      + 'archive_part（部完结时归档【部总结包】压缩后的摘要，≤15 行）、'
       + 'write_chapter（写第 N 章章纲——写正文前必须先做这步）、write_text（保存第 N 章正文）、'
       + 'write_note（当日手记落盘：追加写 手记/YYYY-MM-DD.md，date 可选）、read（读回任意一项）。'
       + '章纲是写作的前置条件：没有章纲时 webnovel_context 会返回 blocker。'
-      + '当用户说「定大纲 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章 / 记下手记」时使用。',
+      + '当用户说「定大纲 / 拆部 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章 / 记下手记」时使用。',
     {
       action: {
         type: 'string',
-        enum: ['write_master', 'write_volume', 'write_chapter', 'write_text', 'write_note', 'read'],
+        enum: ['write_master', 'write_volume', 'write_part', 'archive_part', 'write_chapter', 'write_text', 'write_note', 'read'],
         description: '要执行的动作。',
       },
       text: { type: 'string', description: '要写入的 Markdown 内容（write_* 动作必填）。' },
       chapter: { type: 'number', description: '章节号（write_chapter / write_text / read 时用）。' },
       volume: { type: 'number', description: '卷号（write_volume 时用）。' },
-      title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名。' },
-      chapterRange: { type: 'string', description: '卷的章节范围，例如 "1-100"（write_volume 时可选）。' },
+      part: { type: 'number', description: '部号（write_part / archive_part 时用）。' },
+      title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名；write_part 时是部名。' },
+      chapterRange: { type: 'string', description: '章节范围，例如 "1-150"（write_volume / write_part 时可选；部的边界以它为准）。' },
+      summary: { type: 'string', description: 'archive_part 的部摘要正文（≤15 个非空行；按 2.5 的部总结包压缩）。' },
+      hook: { type: 'string', description: 'write_part / archive_part 的跨部钩子（2.6：指向下一部的具体诱因，禁止「远方有大事」）。' },
       date: { type: 'string', description: '手记日期，YYYY-MM-DD（write_note 时可选，缺省今天）。' },
-      scope: { type: 'string', enum: ['master', 'volume', 'chapter', 'text', 'note'], description: 'read 动作读哪一项。强烈建议显式传：省略会默认落 master（总纲）或 chapter（章纲），静默读不到你要的那一项。master=总纲／volume=卷纲(volume=N)／chapter=章纲(chapter=N)／text=正文(chapter=N)／note=当日手记(date=YYYY-MM-DD，缺省今天)。' },
+      scope: { type: 'string', enum: ['master', 'part', 'volume', 'chapter', 'text', 'note', 'part_summary'], description: 'read 动作读哪一项。强烈建议显式传：省略会默认落 master（总纲）或 chapter（章纲），静默读不到你要的那一项。master=总纲／part=部纲(part=N)／volume=卷纲(volume=N)／chapter=章纲(chapter=N)／text=正文(chapter=N)／note=当日手记(date=YYYY-MM-DD，缺省今天)／part_summary=已归档的部摘要(part=N)。' },
     },
     ['action'],
     async (args, config) => {
@@ -389,10 +397,20 @@ export const TOOL_DEFS = [
         const explicitScope = args.scope != null && String(args.scope).trim() !== '';
         const scope = explicitScope ? String(args.scope).trim()
           : (args.chapter ? 'chapter' : 'master');
-        const hint = explicitScope ? '' : `\n\n（未指定 scope，本次读的是${scope === 'chapter' ? '章纲' : '总纲'}。要读别的请显式传 scope：master 总纲 / volume 卷纲(volume=N) / chapter 章纲(chapter=N) / text 正文(chapter=N) / note 手记(date=YYYY-MM-DD，缺省今天)）`;
+        const hint = explicitScope ? '' : `\n\n（未指定 scope，本次读的是${scope === 'chapter' ? '章纲' : '总纲'}。要读别的请显式传 scope：master 总纲 / part 部纲(part=N) / volume 卷纲(volume=N) / chapter 章纲(chapter=N) / text 正文(chapter=N) / note 手记(date=YYYY-MM-DD，缺省今天) / part_summary 部摘要(part=N)）`;
         if (scope === 'master') {
           const content = readMaster(dir);
           return (content ? `# 总纲（${id}）\n\n${content.trim()}` : `（《${id}》还没有总纲）`) + hint;
+        }
+        if (scope === 'part') {
+          const p = args.part ?? 1;
+          const content = readPart(dir, p);
+          return (content ? content.trim() : `（第 ${p} 部还没有部纲）`) + hint;
+        }
+        if (scope === 'part_summary') {
+          const p = args.part ?? 1;
+          const content = readPartSummary(dir, p);
+          return (content ? content.trim() : `（第 ${p} 部还没有归档摘要）`) + hint;
         }
         if (scope === 'volume') {
           const v = args.volume ?? 1;
@@ -412,11 +430,25 @@ export const TOOL_DEFS = [
       }
 
       const content = String(args.text ?? '');
-      if (!content.trim()) throw new Error(`${action} 需要提供 text 内容`);
+      if (action !== 'archive_part' && !content.trim()) throw new Error(`${action} 需要提供 text 内容`);
 
       if (action === 'write_master') {
         const r = writeMasterOutline(dir, content);
         return `已保存《${id}》总纲：${r.path}\n\n下一步：用 action=write_volume 拆第一卷卷纲。`;
+      }
+      if (action === 'write_part') {
+        const r = writePartOutline(dir, args.part ?? 1, content, {
+          title: args.title, chapterRange: args.chapterRange, hook: args.hook,
+        });
+        return `已保存第 ${r.part} 部部纲：${r.path}`
+          + (r.registered?.chapterRange ? `（章节范围 ${r.registered.chapterRange}）` : '（未给 chapterRange：部末倒计时无法计算，建议补上）')
+          + (r.warnings.length ? `\n\n⚠ ${r.warnings.join('\n⚠ ')}` : '')
+          + '\n\n下一步：用 action=write_volume 拆本部的卷纲，再用 action=write_chapter 写章纲。';
+      }
+      if (action === 'archive_part') {
+        const r = archivePart(dir, args.part ?? 1, args.summary, { hook: args.hook });
+        return `已归档第 ${r.part} 部摘要：${r.path}（${r.lines}/${r.maxLines} 行）`
+          + '\n\n历史区只留摘要：此后引用已完结部只依据它（2.5）。';
       }
       if (action === 'write_volume') {
         const r = writeVolumeOutline(dir, args.volume ?? 1, content, { title: args.title, chapterRange: args.chapterRange });

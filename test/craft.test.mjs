@@ -201,19 +201,21 @@ test('craft · 落点表只认真实存在的键（假键进黑名单）', () =>
     'knows', 'notKnows', 'mistaken', 'relationLevel', 'arcProgress',
     'type=suspense', 'type=foreshadow', 'type=cheque', 'type=red_herring',
     'plannedPayoff', 'hintChapters', 'realExplanation', 'falseAssumption', 'layer',
+    'state.progress.parts', '大纲/部纲', '.webnovel/parts',
   ]) {
     assert.ok(joined.includes(real), `落点表丢了真实字段「${real}」——它现在是工具能力的一部分`);
   }
   for (const fake of [
     '.speech', 'villainPlan', 'type=misdirect', 'type=promise', 'state.romance',
-    'protagonist.motivation', 'memory.json(kind=rule)',
+    'protagonist.motivation', 'memory.json(kind=rule)', '（未落地）',
   ]) {
     assert.ok(!joined.includes(fake), `落点表出现假键「${fake}」：那个名字从来没有落盘实现过`);
   }
-  // 未落地的两条必须显式标 agent 并写明「未落地」，不许用 new 冒充本版能力
+  // 部摘要已在 #14 落地：必须指到真路径，不许再标 agent/未落地
   const parts = SETTING_TABLE_MAP.find((r) => r.table === '部N摘要（历史区）');
-  assert.equal(parts.status, 'agent', '部摘要要等计划第 14 条落地才能改 new');
-  assert.match(parts.target, /未落地/);
+  assert.equal(parts.status, 'new', '部摘要已落地，状态该是 new');
+  assert.match(parts.target, /\.webnovel\/parts/);
+  assert.match(parts.target, /state\.progress\.parts/);
 });
 
 test('craft · 工具已注册为第 12 个且不带 bookId', async () => {
