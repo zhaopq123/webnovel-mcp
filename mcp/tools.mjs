@@ -16,6 +16,7 @@ import { reviewChapter } from '../lib/features/review.js';
 import { learnMemory, recallMemory, memoryStats, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild } from '../lib/features/doctor.js';
+import { termTypeLabel } from '../lib/features/terms.js';
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText, readNote,
@@ -192,7 +193,7 @@ export function statusPreamble(config) {
  * 节奏统计失真。这里把放错位置的字段提回顶层，并把「提过什么」回给模型，让它下次写对。
  * ------------------------------------------------------------------ */
 const COMMIT_TOP_FIELDS = ['summary', 'strand', 'hook', 'ending', 'title', 'wordCount', 'force'];
-const DELTA_FIELDS = ['protagonist', 'characters', 'world', 'timeline', 'foreshadowing'];
+const DELTA_FIELDS = ['protagonist', 'characters', 'world', 'timeline', 'foreshadowing', 'terms'];
 
 export function normalizeCommitArgs(args = {}) {
   const normalized = { ...args };
@@ -444,7 +445,9 @@ export const TOOL_DEFS = [
     'webnovel_commit',
     '★ 写完一章后必调：把本章产生的事实变化提交落库，系统据此更新状态卡、章节索引、伏笔台账、时间线。'
       + '不提交 = 这一章发生的事不会被记住，后续章节会当作没发生过。'
-      + 'deltas 里写本章的增量：主角状态变化、新角色、新地点/势力、埋下或回收的伏笔、时间线推进。'
+      + 'deltas 里写本章的增量：主角状态变化、新角色、新地点/势力、埋下或回收的伏笔、时间线推进、本章新出现的专名（terms）。'
+      + '提交时系统会扫一遍正文，把「像是专名但账本里查无此名」的词作为提醒列出来（铁律 1 名词锁定，只提醒不拦截），'
+      + '确认是新名字就用 deltas.terms 登记，是误报就忽略。'
       + '提交前系统会核对本章的审查记录：还有未处理的严重问题（🔴）时会被拒绝——'
       + '先用 webnovel_review 审一遍并按建议修改；确认要按原稿提交再传 force=true。'
       + '重复提交同一章是覆盖（幂等）；重提早于当前进度的旧章默认被拒绝（防状态回退），'
@@ -491,7 +494,9 @@ export const TOOL_DEFS = [
           + 'firstChapter/lastChapter 不传会自动填本章号）、'
           + 'world（{factions:[],locations:[],powerSystem:[]}，只增不减）、'
           + 'timeline（{time,location,event}，每章一条；传数组会被合并为一条，多事件用「；」写在 event 里）、'
-          + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note}], paid:["名称"], dropped:["名称"]}）。',
+          + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note}], paid:["名称"], dropped:["名称"]}）、'
+          + 'terms（[{name,type,aliases?,note?}]，本章出现的新专名登记；type 认中文也认英文：'
+          + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）。',
       },
     },
     ['chapter'],
@@ -508,6 +513,11 @@ export const TOOL_DEFS = [
       if (result.paid.length > 0) lines.push(`已回收伏笔：${result.paid.join('、')}`);
       if (result.overdue.length > 0) {
         lines.push(`⚠ 仍有 ${result.overdue.length} 条伏笔到期未回收：${result.overdue.map((f) => f.name).join('、')}`);
+      }
+      // 专名登记结果单独播报一行：作者要能看见「这次系统记住了哪些新名字」，
+      // 疑似漏登记的名字由 warnings 里那条提醒负责（两者别混成一行，混了就看不出哪个要处理）。
+      if (result.registered?.length > 0) {
+        lines.push(`新登记专名 ${result.registered.length} 条（账本共 ${result.termsTotal} 条）：${result.registered.map((t) => `${t.name}（${termTypeLabel(t.type)}）`).join('、')}`);
       }
       const p = result.progress;
       lines.push(`总进度：${p.currentChapter} 章 / ${p.totalWords} 字（目标 ${p.targetChapters} 章 / ${p.targetWords} 字）`);
@@ -531,16 +541,22 @@ export const TOOL_DEFS = [
       + 'kind=status（进度概览）、character（角色卡，传 name 查单个、不传列全部）、'
       + 'foreshadowing（伏笔台账）、chapter（某章详情与事实变化）、'
       + 'setting（设定集，传 name 查单篇）、timeline（事件时间线）、'
+      + 'term（专名账本：传 name 查单个名字（别名也算命中）、传 type 按类别筛、都不传列全表）、'
       + 'memory（写作经验）、search（在正文/大纲/设定/摘要里全文检索关键词）。'
-      + '当用户问「主角现在什么境界 / 某某是谁 / 玉佩那条伏笔还开着吗 / 之前哪一章写过 X」时使用。'
+      + '当用户问「主角现在什么境界 / 某某是谁 / 玉佩那条伏笔还开着吗 / 幽冥宗这个名字登记过吗 / 之前哪一章写过 X」时使用。'
       + '注意：动笔前拿上下文应该用 webnovel_context，不是这个工具。',
     {
       kind: {
         type: 'string',
-        enum: ['status', 'character', 'foreshadowing', 'chapter', 'setting', 'timeline', 'memory', 'search'],
+        enum: ['status', 'character', 'foreshadowing', 'chapter', 'setting', 'timeline', 'term', 'memory', 'search'],
         description: '查询类型。',
       },
-      name: { type: 'string', description: '角色名（kind=character）或设定篇名（kind=setting）。' },
+      name: { type: 'string', description: '角色名（kind=character）、设定篇名（kind=setting）或专名（kind=term）。' },
+      type: {
+        type: 'string',
+        description: '专名类别过滤（kind=term 时用）。英文键 person/place/org/item/skill/term/case/other，'
+          + '传中文说法也认：人名/地名/组织/物品/法宝/功法/技术/术语/案件/其它。',
+      },
       chapter: { type: 'number', description: '章节号（kind=chapter 时用）。' },
       query: { type: 'string', description: '关键词（kind=search / kind=memory 时用）。' },
       status: { type: 'string', enum: ['open', 'paid', 'dropped'], description: '伏笔状态过滤（kind=foreshadowing）。' },
