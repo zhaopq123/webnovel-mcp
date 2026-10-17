@@ -9,6 +9,8 @@
  * 退出码 0 = 全部通过；1 = 有失败项。测试书留在服务端书库里（MCP 没有删书的工具，
  * 客户端删不掉），跑完照最后一行打印的命令清账。
  */
+import { TOOL_NAMES } from '../mcp/tool-names.mjs';
+
 const args = process.argv.slice(2);
 const url = args[0];
 const token = args.find((a) => !a.startsWith('--') && a !== url) ?? process.env.WEBNOVEL_TOKEN ?? '';
@@ -71,10 +73,12 @@ async function main() {
     if (r.body.result.serverInfo.name !== 'webnovel-mcp') throw new Error('serverInfo 不对');
   });
 
-  await check('tools/list 返回 11 个工具', async () => {
+  await check(`tools/list 返回 ${TOOL_NAMES.length} 个工具`, async () => {
     const r = await rpc('tools/list', {});
     const tools = r.body.result.tools;
-    if (tools.length !== 11) throw new Error(`实际 ${tools.length} 个`);
+    const got = tools.map((t) => t.name).sort().join(',');
+    const want = [...TOOL_NAMES].sort().join(',');
+    if (got !== want) throw new Error(`工具清单与本地期望不一致\n      线上: ${got}\n      期望: ${want}`);
     const json = JSON.stringify(tools.map((t) => t.inputSchema));
     for (const banned of ['anyOf', 'oneOf', '$ref']) {
       if (json.includes(banned)) throw new Error(`schema 含 ${banned}`);

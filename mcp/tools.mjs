@@ -21,6 +21,9 @@ import {
   readMaster, readVolume, readChapter, readChapterText, readNote,
 } from '../lib/features/outline.js';
 import { toInt, countWords, wrapTitle } from '../lib/util.js';
+import {
+  loadCatalog, craftSections, craftGet, craftBrief, craftMap, craftCheck, renderCheck,
+} from '../lib/features/craft.js';
 
 /**
  * bookId 允许：中英文、数字、- 和 _（1-64 字符）。
@@ -115,9 +118,13 @@ const BOOK_PARAM = {
   description: '书 ID（书库里那本书的目录名）。书库里只有一本书时可以省略；有多本时必须指定，可用 webnovel_books 查看。',
 };
 
+/** 不接受 bookId 的工具（供契约测试共用同一口径，别在测试里重抄一遍名单）。 */
+export const NO_BOOK_PARAM = new Set(['webnovel_init', 'webnovel_books', 'webnovel_craft']);
+
 function tool(name, description, properties, required, handler) {
   const props = { ...properties };
-  if (name !== 'webnovel_init' && name !== 'webnovel_books') props.bookId = BOOK_PARAM;
+  // craft 操作的是仓库里的提示词切片库，与具体某本书无关，塞 bookId 只会诱导模型乱传。
+  if (!NO_BOOK_PARAM.has(name)) props.bookId = BOOK_PARAM;
   return {
     name,
     description,
@@ -652,6 +659,62 @@ export const TOOL_DEFS = [
         return [...result.lines, '', bookLine(config, id, dir)].join('\n');
       }
       throw new Error(`未知的 action：${action}。可用：check / rebuild`);
+    },
+  ),
+
+  tool(
+    'webnovel_craft',
+    '创作规则库：仓库里逐字保存的《小说创作全流程协作提示词》（19 节）按阶段切片供给。'
+      + '它回答「这个阶段该怎么干」，与 webnovel_context（回答「这本书现在是什么状态」）互补，两者不重复。'
+      + 'action=sections 看切片目录与阶段包大小；get 按切片号取原文（ids="15.8" 单片、ids="15" 整节、ids="all" 全篇）；'
+      + 'brief 按创作阶段组包（stage=negotiate/stage1..stage7/report/record/protocol，也认「正文」「章纲」「阶段3」这类中文说法）；'
+      + 'map 看【设定记录】20 表落到本书哪些账本；check 校验原文/切片库/哈希锁三方一致。'
+      + '当用户问「规则怎么定的 / 这个阶段该交什么 / 设定记录怎么写 / 把提示词给我」时使用。'
+      + '注意：规则原文只在本工具与 prompt/CREATIVE-PROMPT.md 一处，别抄进大纲、正文或自己的提示词文件。',
+    {
+      action: {
+        type: 'string',
+        enum: ['sections', 'get', 'brief', 'map', 'check'],
+        description: 'sections=切片目录（默认）/ get=按切片号取原文 / brief=按创作阶段组包 / map=设定记录落点表 / check=完整性自检。',
+      },
+      ids: {
+        type: 'string',
+        description: 'action=get 用：切片号，逗号分隔。例："15.8,19"、"15"（整节含子节）、"all"（全篇，慎用，2.2 万字）。',
+      },
+      stage: {
+        type: 'string',
+        description: 'action=brief 用：negotiate / stage1 / stage2 / stage3 / stage4 / stage5 / stage6 / stage7 / report / record / protocol。默认 stage6（正文）。',
+      },
+      maxChars: {
+        type: 'number',
+        description: '输出预算（字数）。get 默认不限；brief 默认不限，接进自己的系统提示词时建议传 800-1200 只取最关键的切片。',
+      },
+      extra: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'action=brief 用：在阶段包之外追加的切片号，例如 ["19"] 把设定记录格式一起带上。',
+      },
+    },
+    [],
+    async (args) => {
+      const action = String(args.action ?? 'sections').trim() || 'sections';
+      if (action === 'check') return renderCheck(craftCheck());
+      if (action === 'map') return craftMap();
+      const { catalog } = loadCatalog();
+      if (action === 'sections') return craftSections(catalog);
+      if (action === 'get') {
+        const r = craftGet(catalog, args.ids, { maxChars: toInt(args.maxChars, 0) });
+        const head = `原文切片 ${r.units.map((u) => u.id).join('、')}（${r.chars} 字，逐字来自 prompt/CREATIVE-PROMPT.md）：`;
+        return `${head}\n\n${r.text}`;
+      }
+      if (action === 'brief') {
+        const r = craftBrief(catalog, args.stage, {
+          maxChars: toInt(args.maxChars, 0),
+          extra: Array.isArray(args.extra) ? args.extra : [],
+        });
+        return r.text;
+      }
+      throw new Error(`未知的 action：${action}。可用：sections / get / brief / map / check`);
     },
   ),
 ];

@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHttpServer } from '../server.mjs';
 import { loadConfig } from '../mcp/tools.mjs';
+import { TOOL_NAMES } from '../mcp/tool-names.mjs';
 
 function tempConfig(extra = {}) {
   const booksRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-mcp-'));
@@ -89,12 +90,13 @@ test('MCP · initialize 对未知协议版本回退到默认版本', async () =>
   }
 });
 
-test('MCP · tools/list 返回 11 个工具且 schema 干净', async () => {
+test('MCP · tools/list 与工具名清单一致且 schema 干净', async () => {
   const s = await start(tempConfig());
   try {
     const r = await s.rpc('tools/list', {});
     const tools = r.body.result.tools;
-    assert.equal(tools.length, 11);
+    // 断言的是「清单 == 实际暴露」这个不变量，不是某个写死的数字
+    assert.deepEqual(tools.map((t) => t.name).sort(), [...TOOL_NAMES].sort());
     for (const t of tools) {
       assert.ok(t.name.startsWith('webnovel_'), `${t.name} 应以 webnovel_ 开头`);
       assert.ok(t.description.length > 30, `${t.name} 的描述应足够说明何时使用`);
@@ -271,7 +273,7 @@ test('MCP · 配了 token 就必须带 Bearer，/health 不需要', async () => 
 
     const ok = await s.rpc('tools/list', {}, { headers: { authorization: 'Bearer secret-token-123' } });
     assert.equal(ok.status, 200);
-    assert.equal(ok.body.result.tools.length, 11);
+    assert.equal(ok.body.result.tools.length, TOOL_NAMES.length);
 
     const health = await fetch(`${s.base}/health`);
     assert.equal(health.status, 200);

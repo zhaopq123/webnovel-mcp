@@ -14,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createHttpServer } from '../server.mjs';
 import { loadConfig } from '../mcp/tools.mjs';
+import { TOOL_NAMES } from '../mcp/tool-names.mjs';
 
 function startFresh() {
   const booksRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wnw-l0-'));
@@ -81,7 +82,7 @@ test('S4 · 每个工具的描述都能回答「什么时候用」', async () =>
   const s = await startFresh();
   try {
     const tools = (await s.rpc('tools/list', {})).tools;
-    assert.equal(tools.length, 11);
+    assert.deepEqual(tools.map((t) => t.name).sort(), [...TOOL_NAMES].sort());
     for (const t of tools) {
       assert.match(
         t.description,

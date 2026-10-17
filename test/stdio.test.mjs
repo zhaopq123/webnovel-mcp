@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { TOOL_NAMES } from '../mcp/tool-names.mjs';
 
 const SERVER = fileURLToPath(new URL('../server.mjs', import.meta.url));
 
@@ -72,7 +73,7 @@ test('L0 · stdio 走查：握手 → 工具 → 写作闭环一站到底', asyn
     child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
 
     const tools = (await rpc('tools/list', {})).result.tools;
-    assert.equal(tools.length, 11);
+    assert.deepEqual(tools.map((t) => t.name).sort(), [...TOOL_NAMES].sort());
 
     await call('webnovel_init', { bookId: 'stdio0', title: '走查书', genre: '都市异能' });
     await call('webnovel_outline', { bookId: 'stdio0', action: 'write_chapter', chapter: 1, text: '# 第一章 开场\n- 场景：出租屋' });

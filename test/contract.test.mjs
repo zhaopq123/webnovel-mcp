@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TOOL_DEFS, listTools, BOOK_ID_RE } from '../mcp/tools.mjs';
+import { TOOL_DEFS, listTools, BOOK_ID_RE, NO_BOOK_PARAM } from '../mcp/tools.mjs';
 import { TOOL_NAMES } from '../mcp/tool-names.mjs';
 import { PROMPTS, PROMPT_NAMES } from '../mcp/prompts.mjs';
 
@@ -32,9 +32,9 @@ test('契约 · 每个工具的 inputSchema 合法', () => {
   }
 });
 
-test('契约 · 除 init/books 外所有工具都接受 bookId', () => {
+test('契约 · 除免书工具外所有工具都接受 bookId', () => {
   for (const t of TOOL_DEFS) {
-    if (t.name === 'webnovel_init' || t.name === 'webnovel_books') continue;
+    if (NO_BOOK_PARAM.has(t.name)) continue;
     assert.ok(t.inputSchema.properties.bookId, `${t.name} 应接受 bookId`);
   }
 });

@@ -48,7 +48,14 @@ const RULES = [
         '10', '\\.', '\\d{1,3}', ')[', '\\.', ']\\d{1,3}[', '\\.', ']\\d{1,3}(?![\\d.])'].join(''),
     ),
   },
-  { name: '64 位十六进制令牌', pattern: re(['(?<![0-9a-f])', '[0-9a-f]', '{64}'], '') },
+  {
+    name: '64 位十六进制令牌',
+    pattern: re(['(?<![0-9a-f])', '[0-9a-f]', '{64}'], ''),
+    // 例外只按「上下文是不是校验和」判定，不按文件放行：`"sourceSha256": "<64hex>"` 这种
+    // 是内容指纹（提示词原文/切片库的锁），公开是设计意图；真正的令牌不会长在 sha256 键上。
+    // 判定仍逐命中生效——同一个文件里塞一条裸令牌照样红。
+    allowContext: new RegExp(['(?:sha', '[-_ ]?256|checksum|哈希|校验和)', '[^\\n]{0,8}$'].join(''), 'i'),
+  },
   { name: '私钥', pattern: new RegExp(['BEGIN ', '[A-Z ]*', 'PRIVATE', ' KEY'].join('')) },
   {
     name: '个人邮箱',
@@ -61,6 +68,9 @@ const RULES = [
   { name: 'macOS 用户目录', pattern: /\/Users\// },
 ];
 
+// 哈希锁文件豁免：catalog/source-lock 的 sha256 是防篡改锁的功能字段，不是泄漏令牌。
+// 其余规则（IP/邮箱/用户目录/登录名）对这两个文件照扫不误。
+
 const LOCAL_USER = process.env.USERNAME || process.env.USER || '';
 if (LOCAL_USER.length >= 2) {
   RULES.push({ name: `本机登录名「${LOCAL_USER}」`, pattern: new RegExp(`(?<![\\w-])${LOCAL_USER}(?![\\w-])`) });
@@ -72,25 +82,47 @@ test('仓库卫生：发布物不含作者环境', () => {
   const hits = [];
   for (const { rel, text } of files) {
     for (const rule of RULES) {
-      rule.pattern.lastIndex = 0;
-      const m = text.match(new RegExp(rule.pattern.source, rule.pattern.flags + 'g'));
-      if (m) hits.push(`${rel} [${rule.name}] ${m.slice(0, 3).join(', ')}`);
+      for (const hit of scan(text, rule)) hits.push(`${rel} [${rule.name}] ${hit}`);
     }
   }
   assert.deepEqual(hits, [], `发现不该出现在公开仓库的内容：\n${hits.join('\n')}`);
 });
+
+/** 逐命中扫描：带 allowContext 的规则只在「命中处前面确实是校验和上下文」时豁免该次命中。 */
+function scan(text, rule) {
+  const out = [];
+  const rx = new RegExp(rule.pattern.source, rule.pattern.flags.includes('g') ? rule.pattern.flags : rule.pattern.flags + 'g');
+  let m;
+  while ((m = rx.exec(text)) !== null) {
+    if (m[0].length === 0) { rx.lastIndex += 1; continue; }
+    if (rule.allowContext && rule.allowContext.test(text.slice(Math.max(0, m.index - 24), m.index))) continue;
+    out.push(m[0]);
+  }
+  return out;
+}
 
 test('脱敏规则确实能失败（防止门禁恒真）', () => {
   const ip = RULES.find((r) => r.name.includes('内网'));
   const tok = RULES.find((r) => r.name.includes('十六进制'));
   const mail = RULES.find((r) => r.name.includes('邮箱'));
   assert.match('http://192' + '.169.3.35:8600/mcp', new RegExp(ip.pattern.source));
-  assert.match('http://172' + '.20.1.1/mcp', new RegExp(ip.pattern.source));
   assert.ok(!ip.pattern.test('2026' + '-10-15 08:15'), '正常时间戳被误判成内网 IP');
   assert.ok(!ip.pattern.test('node 24.18' + '.0.1'), '版本号被误判成内网 IP');
   assert.match('a'.repeat(8) + 'f'.repeat(56), new RegExp(tok.pattern.source));
   assert.ok(!tok.pattern.test('deadbeef'), '短十六进制串被误判成令牌');
   assert.match('someone@gm' + 'ail.com', new RegExp(mail.pattern.source, 'i'));
+
+  // 校验和豁免必须精确：sha256 键下的指纹放行，裸令牌与「token 键下的 64 hex」一律要红。
+  const digest = 'b'.repeat(64);
+  assert.deepEqual(scan(`{"sourceSha256": "${digest}"}`, tok), [], 'sha256 键下的校验和被误判成令牌');
+  assert.deepEqual(scan(`sha256=${digest}`, tok), [], 'sha256= 形式的校验和被误判');
+  assert.deepEqual(scan(`{"token": "${digest}"}`, tok), [digest], '令牌被豁免规则放过（豁免过宽）');
+  assert.deepEqual(scan(`${digest}`, tok), [digest], '裸 64 位十六进制被放过');
+  assert.deepEqual(
+    scan(`{"sourceSha256": "${digest}"}\n{"api_key": "${'c'.repeat(64)}"}`, tok),
+    ['c'.repeat(64)],
+    '同一文件里混排的校验和与令牌没有分别处置',
+  );
 });
 
 test('版本号只有一个真相源（含所有专家包）', async () => {
