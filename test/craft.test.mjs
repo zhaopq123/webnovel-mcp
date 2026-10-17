@@ -187,6 +187,35 @@ test('craft · 设定记录落点表覆盖 20 表且状态取值合法', () => {
   assert.equal(new Set(names).size, names.length, '落点表有重名');
 });
 
+/**
+ * 落点表会被 agent 当成「往哪个键里塞东西」的说明书（action=map 原样输出），
+ * 所以它必须跟着数据模型一起长。这张表写一个不存在的键＝工具撒谎，
+ * 而撒谎的落点比空白更糟：agent 会照着写，写完查不到，账就散了。
+ * 这一条把「计划第 9-12 条已落地」的字段名钉死，并把早期设计稿里那几个假键钉回黑名单。
+ */
+test('craft · 落点表只认真实存在的键（假键进黑名单）', () => {
+  const joined = SETTING_TABLE_MAP.map((r) => `${r.table} ${r.target} ${r.note}`).join('\n');
+  for (const real of [
+    'terms.json', 'structure.js', 'desire', 'fear', 'secret', 'contradiction',
+    'voice', 'fingerprint', 'meltdown', 'humanFlaws', 'errorPlan',
+    'knows', 'notKnows', 'mistaken', 'relationLevel', 'arcProgress',
+    'type=suspense', 'type=foreshadow', 'type=cheque', 'type=red_herring',
+    'plannedPayoff', 'hintChapters', 'realExplanation', 'falseAssumption', 'layer',
+  ]) {
+    assert.ok(joined.includes(real), `落点表丢了真实字段「${real}」——它现在是工具能力的一部分`);
+  }
+  for (const fake of [
+    '.speech', 'villainPlan', 'type=misdirect', 'type=promise', 'state.romance',
+    'protagonist.motivation', 'memory.json(kind=rule)',
+  ]) {
+    assert.ok(!joined.includes(fake), `落点表出现假键「${fake}」：那个名字从来没有落盘实现过`);
+  }
+  // 未落地的两条必须显式标 agent 并写明「未落地」，不许用 new 冒充本版能力
+  const parts = SETTING_TABLE_MAP.find((r) => r.table === '部N摘要（历史区）');
+  assert.equal(parts.status, 'agent', '部摘要要等计划第 14 条落地才能改 new');
+  assert.match(parts.target, /未落地/);
+});
+
 test('craft · 工具已注册为第 12 个且不带 bookId', async () => {
   assert.equal(TOOL_NAMES.length, TOOL_DEFS.length);
   assert.ok(TOOL_NAMES.includes('webnovel_craft'));

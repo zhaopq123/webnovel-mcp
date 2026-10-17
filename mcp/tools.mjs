@@ -508,9 +508,16 @@ export const TOOL_DEFS = [
         type: 'object',
         description:
           '本章的事实增量。子字段：'
-          + 'protagonist（主角状态，如 {location, condition, power:{realm}}）、'
-          + 'characters（[{name, patch:{role,relation,realm,location,firstChapter,lastChapter,notes}}]，'
-          + 'firstChapter/lastChapter 不传会自动填本章号）、'
+          + 'protagonist（主角状态与档案，如 {location, condition, power:{realm}, '
+          + 'desire, fear, secret, contradiction, voice:{fingerprint,profanity,...}, '
+          + 'humanFlaws:{habits:[],selfishMotive,errorPlan}}；desire/fear/secret/contradiction 是第六节三维，'
+          + 'humanFlaws 是 6.14 主角人味三项，缺项由 webnovel_status 报待办）、'
+          + 'characters（[{name, patch:{role,relation,realm,location,firstChapter,lastChapter,notes,'
+          + 'desire,fear,secret,contradiction,plan,goal,arcProgress,relationLevel,relationStage,'
+          + 'voice,knows,notKnows,mistaken}}]，'
+          + 'firstChapter/lastChapter 不传会自动填本章号；relationLevel 认 1-5 也认五级名（陌生/共事/信任/依赖/托付），'
+          + 'knows/notKnows/mistaken 是 6.13 信息表、跨章累积去重，审查 3.6⑧ 拿它逐条台词核对归属，'
+          + 'voice 是对象（6.5 语言指纹 + 6.13 口语档位），深合并不整份覆盖）、'
           + 'world（{factions:[],locations:[],powerSystem:[]}，只增不减）、'
           + 'timeline（{time,location,event}，每章一条；传数组会被合并为一条，多事件用「；」写在 event 里）、'
           + 'foreshadowing（{planted:[{name,plannedPayoff,importance,note,type,layer,dueChapter,readerAware,'
@@ -522,7 +529,8 @@ export const TOOL_DEFS = [
           + 'hinted=本章让某条在线问题又露了一次脸（2.3 的「悬置 50 章无暗示＝警报」只看它）；'
           + 'red_herring 必须配 realExplanation（揭晓后这条线索的真实解释），否则审查会 🔴，'
           + 'terms（[{name,type,aliases?,note?}]，本章出现的新专名登记；type 认中文也认英文：'
-          + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）。',
+          + '人名/地名/组织/物品/功法·技术/术语/案件/其它，firstChapter 自动填本章号，重名是合并不是新增）。'
+          + '要每张【设定记录】表落在哪个键：webnovel_craft action=map。',
       },
     },
     ['chapter'],
@@ -619,7 +627,7 @@ export const TOOL_DEFS = [
   tool(
     'webnovel_review',
     '审查某一章的一致性，返回按严重程度排序的问题清单（含原文证据与修改建议）。'
-      + '六个维度：设定一致性（状态冲突、境界回退、已死角色出场）、叙事连贯（与前章衔接）、'
+      + '六个维度：设定一致性（状态冲突、境界回退、已死角色出场、3.6⑧ 台词归属核对——说了他登记为「不知道」的事，以及别人的秘密被非主人说出口）、叙事连贯（与前章衔接）、'
       + '节奏（三线断档）、大纲符合度、伏笔（到期未回收/埋了没登记）、追读力（章末钩子、段落长度、对话比例）。'
       + '当用户说「检查一下这章 / 有没有问题 / 帮我审一下 / 会不会崩设定」时使用。'
       + '若不传 text，会自动读取该章正文文件。审查结果会落盘为该章的审查记录；'
