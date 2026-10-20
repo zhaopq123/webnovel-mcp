@@ -12,6 +12,13 @@
   Windows 上 `node -e '/tmp/...'` 会被 Node 解释成 `C:\tmp`（故障注入失效，`07-restore` 假红 4 条），
   Android/Termux 根分区只读根本没有 `/tmp`。
 
+### 修复
+
+- **套件脚本可执行位丢失**：`suites/**/*.sh` 共 64 个在 git 索引里是 `100644`（Windows 上从 zip 解压、
+  `cp` 复制都不保留 +x），CI 一跑 `wm-*.sh` 全被判「缺失或不可执行」。已用
+  `git update-index --chmod=+x` 批量恢复 `100755`。**这条是 suites job 上线后第一次运行抓到的**，
+  之前手工跑都是 `bash xxx.sh`，看不出权限问题。
+
 ### 说明
 
 - 主体代码零改动；版本升 1.6.1 只为让 `serverInfo` 与实际发布物对齐。
