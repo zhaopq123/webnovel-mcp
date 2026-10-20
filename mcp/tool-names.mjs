@@ -12,6 +12,7 @@ export const TOOL_NAMES = [
   'webnovel_memory',
   'webnovel_doctor',
   'webnovel_craft',
+  'webnovel_restore',
 ];
 
 export default TOOL_NAMES;

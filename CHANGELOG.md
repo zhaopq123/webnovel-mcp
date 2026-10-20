@@ -1,5 +1,24 @@
 # 变更记录
 
+## [1.7.0] - 2026-10-20
+
+### 新增
+
+- **第 13 个工具 `webnovel_restore`（断点恢复包）**：把「写到哪了 / 手里有什么 / 下一章怎么接」
+  拼成一份可以整段贴给新会话的交接文档。适用场景：换会话接着写、换 Agent 接手、
+  隔几天回来先看一眼现在什么情况。
+  - 内容顺序：账本完整性（doctor 的 error/warn 计数 + 前 3 条）→ 已写章数字数/下一章 →
+    进度（结构换算、部卷位置、叙事债务）→ 按优先级排的待办 → 下一章三步走 → 三条不可跳的纪律
+  - **只做拼装，不引入新口径**：数据全部来自 `projectStatus()` 与 `doctorCheck()`，
+    与单独调用 `webnovel_status` / `webnovel_doctor` 逐字一致；`structure=full/off` 参数照样透传
+  - 为什么要有它：只调 status 看不到任务书，只调 context 看不到全局待办，
+    两份分开贴，接手的人容易漏掉「还没定章纲」这种硬前置
+
+### 变更
+
+- 文档同步到 13 个工具：`README.md`、`expert/README.md`、`prompt/agents-md-snippet.md`、`docs/USAGE.md`
+- 版本 1.7.0（`package.json` / `CHANGELOG` / 两个专家包 `plugin.json` 同步）
+
 ## [1.6.1] - 2026-10-20
 
 ### 构建

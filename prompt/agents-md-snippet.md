@@ -64,6 +64,7 @@
 |---|---|
 | `webnovel_init` | 开新书，建骨架并给出体量结构换算（几部/几卷/章数） |
 | `webnovel_status` | 写到哪了、下一步做什么；含部进度与部末倒计时 |
+| `webnovel_restore` | 接手/换会话时一把梭：账本完整性 + 进度 + 待办 + 下一章怎么接 |
 | `webnovel_books` | 列出/切换书 |
 | `webnovel_outline` | 总纲/部纲/卷纲/章纲/正文/手记；`write_part` 登记部，`archive_part` 归档部摘要；`read` 必传 `scope`（`master`/`part`/`volume`/`chapter`/`text`/`note`/`part_summary`） |
 | `webnovel_context` | **动笔前必调**：写作任务书（含本章必守规则切片） |

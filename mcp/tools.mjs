@@ -16,6 +16,7 @@ import { reviewChapter } from '../lib/features/review.js';
 import { renderKnowledgeItem } from '../lib/features/knowledge.js';
 import { learnMemory, recallMemory, memoryStats, setStyleBaseline, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
+import { buildRestorePack } from '../lib/features/restore.js';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild, doctorReconcile } from '../lib/features/doctor.js';
 import { termTypeLabel } from '../lib/features/terms.js';
 import { debtItemLine } from '../lib/features/ledger.js';
@@ -357,6 +358,27 @@ export const TOOL_DEFS = [
       const { id, dir } = requireBook(config, args.bookId);
       const status = projectStatus(dir, { structure: args.structure ?? config?.structure ?? 'summary' });
       return [...status.lines, '', bookLine(config, id, dir)].join('\n');
+    },
+  ),
+
+  tool(
+    'webnovel_restore',
+    '断点恢复包：把「写到哪了 / 手里有什么 / 下一章怎么接」拼成一份可以直接贴给新会话的交接文档。'
+      + '当用户说「换会话了 / 接着上次写 / 别人接手 / 你先看看现在什么情况」，'
+      + '或你自己刚接手上一次别人的活时使用。'
+      + '内容就是 status + doctor 的结果按接手顺序排好，口径与单独调用完全一致，不会多算也不会少算。',
+    {
+      structure: {
+        type: 'string',
+        enum: ['summary', 'full', 'off'],
+        description: '进度块里的体量结构换算详略：summary（默认）/ full / off。',
+      },
+    },
+    [],
+    async (args, config) => {
+      const { id, dir } = requireBook(config, args.bookId);
+      const pack = buildRestorePack(dir, { structure: args.structure ?? config?.structure });
+      return [pack.text, '', bookLine(config, id, dir)].join('\n');
     },
   ),
 
