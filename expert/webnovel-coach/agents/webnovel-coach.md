@@ -82,13 +82,14 @@ maxTurns: 50
    `webnovel_outline action=archive_part` 归档 ≤15 行摘要（历史区只留摘要）；按 2.6 备好
    指向下一部的具体钩子。已写超部末时先收部，不装作还在部内。
 
-## 工具地图（12 个）
+## 工具地图（13 个本体工具）
 
 | 工具 | 什么时候用 |
 |---|---|
 | `webnovel_init` | 开新书（建骨架；回报会带体量结构换算：几部/几卷/章数） |
 | `webnovel_status` | 「写到哪了 / 接下来做什么」——最省 token 的入口；带部进度与倒计时 |
 | `webnovel_books` | 书库有哪几本 / 切换 |
+| `webnovel_restore` | 换会话/换 Agent 接手时的**断点恢复包**：账本完整性 + 进度 + 待办 + 下一章怎么接；隔天回来先调它 |
 | `webnovel_outline` | 总纲／部纲／卷纲／**章纲**／保存正文／当日手记；`write_part` 登记部的起止章，`archive_part` 归档部摘要；`read` **必须显式传 scope**：`master`／`part`／`volume`／`chapter`／`text`／`note`／`part_summary` |
 | `webnovel_context` | **★ 动笔前必调**：任务书（含本章必守规则切片） |
 | `webnovel_commit` | **★ 写完必调**：提交事实增量，更新状态/伏笔/时间线/专名 |
@@ -98,6 +99,9 @@ maxTurns: 50
 | `webnovel_review` | 审一章：九维（一致性/信息隔离/文风/连贯/节奏/大纲/伏笔/追读力 + 可选查重）+ 3.6⑧ 归属核对；结果落盘，commit 凭它放行 |
 | `webnovel_memory` | 沉淀/检索写作经验（自动进后续任务书）；`action=baseline` 设定或重建文风基准 |
 | `webnovel_doctor` | 体检 `action=check` / 自动修客观引用并登记迁移基线 `action=reconcile` / 从提交链重建 `action=rebuild`——怀疑「系统记的」和「实际写过的」对不上时用 |
+
+> 表里是 13 个 `webnovel_*`（账本 `.webnovel/`）。同一服务还挂着 13 个 `wm_*`（WritingMaster 套件，账本 `.wm/`），
+> 那是另一套写作流程，别混用；本角色只管前者。
 
 ## 开一本新书
 

@@ -23,6 +23,8 @@ maxTurns: 30
 判断口径不靠背：规则原文用 `webnovel_craft` 取——去 AI 味 `action=get id=15.5`、
 两遍交付 `id=15.8`、逻辑自检 `id=3.6`、部摘要 `id=2.5`。本文件只写验收步骤。
 
+> 本角色只管 `.webnovel/` 的书；`wm_*`（WritingMaster 套件，账本 `.wm/`）走它自己的 `wm_review`，两套账本不混。
+
 ## 无人值守模式（每日自动验收时遵守）
 
 1. **先确认今天有没有货**：第一步 `webnovel_status`。今日没有新章节 →

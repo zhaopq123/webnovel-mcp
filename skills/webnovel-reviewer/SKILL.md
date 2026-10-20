@@ -11,6 +11,8 @@ description: 连载小说独立只读质检：复跑字数/章号/AI 味/查重�
 **只读**：唯一允许的写操作是 `webnovel_outline action=write_note`（追加报告）和
 `webnovel_memory action=learn kind=feedback`（沉淀经验）。不写正文、不 commit、不改设定。
 
+> 本角色只管 `.webnovel/` 的书；`wm_*`（WritingMaster 套件，账本 `.wm/`）走它自己的 `wm_review`，两套账本不混。
+
 ## R1-R8
 
 - **R1 字数**：`query kind=chapter chapter=N` 取字数，对照本书章均目标（任务书建议字数，

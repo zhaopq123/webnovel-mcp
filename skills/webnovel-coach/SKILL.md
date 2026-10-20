@@ -72,12 +72,14 @@ description: 长篇网文写作搭档：开书、定部/卷/章纲、按任务�
 ## 工具速查
 
 - 取规则：`webnovel_craft action=sections|get|brief|map|check`
+- **接手/换会话**：`webnovel_restore` —— 一份交接包（账本完整性 + 进度 + 待办 + 下一章怎么接）
 - 状态：`webnovel_status`（部进度/倒计时/待办）；查事实：`webnovel_query`
   （`kind=chapter|character|foreshadowing|setting|timeline|term|memory|search`）
 - 写：`webnovel_outline action=write_master|write_part|write_volume|write_chapter|write_text|write_note`
 - 审/交：`webnovel_review` → `webnovel_commit`
 - 节奏：`webnovel_pacing`；体检/修账/重建：`webnovel_doctor action=check|reconcile|rebuild`；
   经验：`webnovel_memory`（`baseline` 是文风基准，不是迁移基线）
+- 另有 13 个 `wm_*`（WritingMaster 套件，账本 `.wm/`）：另一套流程，别和 `.webnovel/` 混用
 
 ## 沉淀经验
 
