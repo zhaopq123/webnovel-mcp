@@ -1,5 +1,21 @@
 # 变更记录
 
+## [1.6.1] - 2026-10-20
+
+### 构建
+
+- **套件 655 条用例进 CI**：新增 `suites` job（ubuntu-latest / Node 22），依次跑
+  `writing-master-skill-suite` 与 `writing-master-mcp-suite` 的 `tests/run.sh`（各 17 组 / 655 条断言），
+  并把两份 `REPORT.md` 作为 artifact 留档（`if: always()`，跑挂也能拿到现场）。
+  此前这两个套件的用例只能手工跑，等于「我这边是绿的」；现在 push 就会验。
+- 之所以放在 ubuntu 而不是本机：套件 `tests/lib.sh` 把沙箱写死在 `/tmp/wm-sbx`，
+  Windows 上 `node -e '/tmp/...'` 会被 Node 解释成 `C:\tmp`（故障注入失效，`07-restore` 假红 4 条），
+  Android/Termux 根分区只读根本没有 `/tmp`。
+
+### 说明
+
+- 主体代码零改动；版本升 1.6.1 只为让 `serverInfo` 与实际发布物对齐。
+
 ## [1.6.0] - 2026-10-20
 
 这版把附带套件整体升到 **WritingMaster 2.0.0**（上游新包直入，主体代码零改动）。
