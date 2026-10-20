@@ -1,6 +1,7 @@
 ---
 id: romance-output
-track: romance
+track: novel
+genre: romance
 stage: protocol
 source: "romance-engine-v8.1.md"
 words: 564

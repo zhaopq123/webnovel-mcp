@@ -1,6 +1,7 @@
 ---
 id: romance-init-role
-track: romance
+track: novel
+genre: romance
 stage: init
 source: "romance-engine-v8.1.md"
 words: 916

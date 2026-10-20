@@ -52,12 +52,12 @@ out_has "写作记忆"
 out_has "打脸三段式"
 out_has "谢无咎"
 
-echo "### track 隔离（romance 记忆不注入 novel 书）"
+echo "### 模式隔离（言情模式记忆不注入通用 novel 书）"
 mk_mem technique "言情专用" "心动场景必带一次呼吸描写" '[]' 9
 printf '{"kind":"technique","title":"言情专用","content":"心动场景必带呼吸描写","track":"romance"}' > "$SBX/m.json"
 ck_run 0 bash "$S/wm-memory.sh" --dir "$SBX/pj" --add "$SBX/m.json"
 ck_run 0 bash "$S/wm-context.sh" --dir "$SBX/pj" --task write --chapter 1
-if grep -q "言情专用" "$OUT"; then fail "romance 记忆泄漏进 novel 书"; else pass "track 隔离生效（romance 记忆不注入 novel）"; fi
+if grep -q "言情专用" "$OUT"; then fail "言情模式记忆泄漏进通用 novel 书"; else pass "模式隔离生效（言情模式记忆不注入通用 novel 书）"; fi
 
 echo "### 注入上限（最近 5 条）"
 for i in 1 2 3 4 5 6; do

@@ -113,21 +113,22 @@ ck_run 0 bash "$INST/scripts/wm-init.sh" --track novel --title 冒烟测试 --ta
 ck_run 0 bash "$INST/scripts/wm-doctor.sh" --dir "$SBX/wm-smoke"
 out_has "全部通过"
 rm -rf "$SBX/wm-smoke"
-[ "$(ls "$INST/skills" | wc -l)" = "6" ] && pass "skills 恰好六个子目录（与主路由文档口径一致）" || fail "skills 子目录数 ≠ 6"
+[ "$(ls "$INST/skills" | wc -l)" = "5" ] && pass "skills 恰好五个子目录（四大赛道+主路由，言情并入 novel，与主路由文档口径一致）" || fail "skills 子目录数 ≠ 5"
 for c in init context commit review status archive restore doctor; do
   [ -x "$INST/scripts/wm-$c.sh" ] && pass "wm-$c.sh 可执行" || fail "wm-$c.sh 缺失或不可执行"
 done
 
-echo "### E. 技能互调链路（文件接力）"
-for tr in novel romance screenplay jubensha toolbook; do
+echo "### E. 技能互调链路（文件接力；v2.0 四大赛道，言情为 novel 子模式）"
+for tr in novel screenplay jubensha toolbook; do
   f="$PKG/skills/wm-$tr/SKILL.md"
   if [ -s "$f" ]; then pass "主路由可接力到 wm-$tr"; else fail "wm-$tr/SKILL.md 缺失或为空"; fi
 done
+[ -s "$PKG/skills/wm-romance/SKILL.md" ] && fail "wm-romance 目录应已并入 wm-novel（不得残留独立赛道技能）" || pass "wm-romance 已并入 wm-novel（无独立技能目录）"
 node - "$PKG" > "$NOUT" <<'N'
 const fs = require('fs'), path = require('path');
 const PKG = process.argv[2];
 let bad = 0;
-for (const tr of ['novel', 'romance', 'screenplay', 'jubensha', 'toolbook']) {
+for (const tr of ['novel', 'screenplay', 'jubensha', 'toolbook']) {
   const f = path.join(PKG, 'skills', 'wm-' + tr, 'SKILL.md');
   const txt = fs.readFileSync(f, 'utf8');
   for (const m of txt.matchAll(/slices\/([A-Za-z0-9_-]+)\.md/g)) {
@@ -141,11 +142,11 @@ for (const tr of ['novel', 'romance', 'screenplay', 'jubensha', 'toolbook']) {
     if (!fs.existsSync(path.join(PKG, 'scripts', m[0]))) { console.log(`✗ wm-${tr} 引用命令不存在: ${m[0]}`); bad++; }
   }
 }
-console.log(bad === 0 ? 'OK 五赛道 SKILL 的切片/模板/命令引用（含跨赛道加读）全部有效' : `BAD ${bad} 处失效`);
+console.log(bad === 0 ? 'OK 四大赛道 SKILL 的切片/模板/命令引用（含言情模式与跨赛道加读）全部有效' : `BAD ${bad} 处失效`);
 N
 judge
-# 状态共享：任意技能视角 restore 无损续接（新项目一句话恢复含续作指引）
-ck_run 0 bash "$S/wm-init.sh" --track romance --title 互调验证 --target-words 100000 --dir "$SBX/e3"
+# 状态共享：任意技能视角 restore 无损续接（新项目一句话恢复含续作指引；用言情模式验证 novel 子模式链路）
+ck_run 0 bash "$S/wm-init.sh" --track novel --genre romance --title 互调验证 --target-words 100000 --dir "$SBX/e3"
 ck_run 0 bash "$S/wm-restore.sh" --dir "$SBX/e3"
 out_has "续作指引"
 

@@ -50,8 +50,8 @@ out_has "优先补断档最久的线"
 # strand 归一化落盘核验
 grep -q "strand: quest" "$SBX/pj/.wm/summaries/ch-008.md" && pass "中文别名「主线」归一化为 quest 落盘" || fail "strand 归一化失败"
 
-echo "### 赛道换算（romance 理想配比 40:40:20）"
-ck_run 0 bash "$S/wm-init.sh" --track romance --title 言情节奏 --target-words 60000 --dir "$SBX/pj2" --no-outline-gate
+echo "### 赛道换算（言情模式理想配比 40:40:20）"
+ck_run 0 bash "$S/wm-init.sh" --track novel --genre romance --title 言情节奏 --target-words 60000 --dir "$SBX/pj2" --no-outline-gate
 commit2() {
   cat > "$SBX/c2.json" <<J
 {"summary":{"chapter":$1,"one_line":"$2","hook_type":"心动","strand":"$3"},"words_count":2000}
@@ -63,8 +63,8 @@ commit2 2 "误会渐生" fire
 commit2 3 "家宴交锋" quest
 commit2 4 "雨夜告白" fire
 ck_run 0 bash "$S/wm-pacing.sh" --dir "$SBX/pj2" --window 4
-out_has "赛道换算: romance"
-out_has "言情赛道感情线提至 40%"
+out_has "赛道换算: novel·言情模式"
+out_has "言情模式感情线提至 40%"
 
 echo "### strand 非法值被 commit 拒绝"
 cat > "$SBX/bad.json" <<'J'

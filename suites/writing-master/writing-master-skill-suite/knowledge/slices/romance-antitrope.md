@@ -1,6 +1,7 @@
 ---
 id: romance-antitrope
-track: romance
+track: novel
+genre: romance
 stage: write
 source: "romance-engine-v8.1.md"
 words: 685

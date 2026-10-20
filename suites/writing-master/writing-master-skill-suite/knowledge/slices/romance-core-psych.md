@@ -1,6 +1,7 @@
 ---
 id: romance-core-psych
-track: romance
+track: novel
+genre: romance
 stage: core
 source: "romance-engine-v8.1.md"
 words: 357

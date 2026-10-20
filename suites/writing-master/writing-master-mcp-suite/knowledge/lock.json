@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-19T13:41:31Z",
+  "generated_at": "2026-10-20T06:25:16Z",
   "slices": [
     {
       "id": "novel-negotiate-general",
@@ -149,67 +149,67 @@
     {
       "id": "romance-init-role",
       "file": "slices/romance-init-role.md",
-      "sha": "514d0270a48ea948"
+      "sha": "7d3d53e2b0bafd39"
     },
     {
       "id": "romance-core-psych",
       "file": "slices/romance-core-psych.md",
-      "sha": "6d85d0dba6701fa3"
+      "sha": "36191aa00e394199"
     },
     {
       "id": "romance-workflow",
       "file": "slices/romance-workflow.md",
-      "sha": "1b0723a4b79e2487"
+      "sha": "50ae29166d151c73"
     },
     {
       "id": "romance-pov",
       "file": "slices/romance-pov.md",
-      "sha": "8ad3951188e681ec"
+      "sha": "f76f9d0ac49318ca"
     },
     {
       "id": "romance-info-gap",
       "file": "slices/romance-info-gap.md",
-      "sha": "8eca0e400a262997"
+      "sha": "23abe5fc2bf0d68d"
     },
     {
       "id": "romance-language",
       "file": "slices/romance-language.md",
-      "sha": "b5453a3a3148e94d"
+      "sha": "1edca22f935e4bfb"
     },
     {
       "id": "romance-dialogue",
       "file": "slices/romance-dialogue.md",
-      "sha": "15ffe7397454d7f1"
+      "sha": "4c6a9ee2bef16715"
     },
     {
       "id": "romance-golden-three",
       "file": "slices/romance-golden-three.md",
-      "sha": "8e973e5a55cb77d7"
+      "sha": "45733b2d744237b9"
     },
     {
       "id": "romance-hooks-pace",
       "file": "slices/romance-hooks-pace.md",
-      "sha": "8a9ad17afa314622"
+      "sha": "3ae343190fc8482a"
     },
     {
       "id": "romance-antitrope",
       "file": "slices/romance-antitrope.md",
-      "sha": "d57d69ab34140ef1"
+      "sha": "fc4d06a7319d312d"
     },
     {
       "id": "romance-ledger-review",
       "file": "slices/romance-ledger-review.md",
-      "sha": "6c6c14356759b247"
+      "sha": "345042e71bcb5c31"
     },
     {
       "id": "romance-recovery",
       "file": "slices/romance-recovery.md",
-      "sha": "caebd7355af4f324"
+      "sha": "0d0d2d4df92622d0"
     },
     {
       "id": "romance-output",
       "file": "slices/romance-output.md",
-      "sha": "318c7fbbbb5915f7"
+      "sha": "e423ced471840e31"
     },
     {
       "id": "screenplay-negotiate-general",

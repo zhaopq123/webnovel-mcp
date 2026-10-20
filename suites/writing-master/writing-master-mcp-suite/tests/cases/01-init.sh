@@ -16,14 +16,16 @@ file_is "$SBX/.wm/ledger/names.tsv"
 file_is "$SBX/.wm/commits.log"
 out_has "下一步"
 
-# 指定目录 + collab 模式
-ck_run 0 bash "$S/wm-init.sh" --track romance --title 言情测试 --target-words 250000 --mode collab --dir "$SBX/proj2"
-jget "$SBX/proj2/.wm/state.json" "o.track==='romance' && o.mode==='collab'" "指定目录+collab 模式生效"
+# 指定目录 + collab 模式 + 言情模式（v2.0：--track novel --genre romance）
+ck_run 0 bash "$S/wm-init.sh" --track novel --genre romance --title 言情测试 --target-words 250000 --mode collab --dir "$SBX/proj2"
+jget "$SBX/proj2/.wm/state.json" "o.track==='novel' && o.genre==='romance' && o.mode==='collab'" "指定目录+言情模式+collab 生效"
 
-# 五大赛道逐一初始化成功
-for tr in novel romance screenplay jubensha toolbook; do
+# 四大赛道逐一初始化成功 + 言情模式（novel 子模式）
+for tr in novel screenplay jubensha toolbook; do
   ck_run 0 bash "$S/wm-init.sh" --track "$tr" --title "书-$tr" --target-words 100000 --dir "$SBX/p-$tr"
 done
+ck_run 0 bash "$S/wm-init.sh" --track novel --genre romance --title 书-言情 --target-words 100000 --dir "$SBX/p-romance"
+jget "$SBX/p-romance/.wm/state.json" "o.track==='novel' && o.genre==='romance'" "言情模式 state 落盘正确"
 
 echo "### 边界与非法参数"
 ck_run 1 bash "$S/wm-init.sh" --track poetry --title x --target-words 50000 --dir "$SBX/bad-track"

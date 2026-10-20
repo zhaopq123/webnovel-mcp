@@ -1,6 +1,7 @@
 ---
 id: romance-info-gap
-track: romance
+track: novel
+genre: romance
 stage: write
 source: "romance-engine-v8.1.md"
 words: 491

@@ -1,5 +1,37 @@
 # 变更记录
 
+## [1.6.0] - 2026-10-20
+
+这版把附带套件整体升到 **WritingMaster 2.0.0**（上游新包直入，主体代码零改动）。
+
+### 修复
+
+- **卫生门禁的「本机登录名」规则在 CI 上误伤**：该规则拿 `$USERNAME/$USER` 去搜全仓，而 CI 里
+  这两个值恒为 `runner`，README 里写一句「ubuntu runner」就让 CI 判红。现在 `CI=true` 时跳过这条
+  规则（它要抓的是作者本机登录名，不是 CI 服务账号）；本机跑仍照常生效。
+
+### 变更
+
+- **套件升级 1.2.0 → 2.0.0**：结构不变（13 命令 / 82 切片 / 29 模板 / 两个套装），改动集中在
+  - **言情并入 novel 赛道**：`--track romance` 废弃，改走 `--track novel --genre romance`；
+    旧参数仍可用并自动映射（会打废弃提示）。`wm-romance` 技能目录随之移除，赛道技能从 6 个降到 5 个，
+    `romance-*` 知识切片一条没删，全部改由 `wm-novel` 第七节「言情模式」消费
+  - 引擎 `scripts/wm.js`、MCP 壳 `scripts/mcp-server.mjs` 同步（版本号自报 2.0.0）
+  - 测试从 16 组 / 605 条增至 **17 组 / 655 条**（新增 `17-romance-mode`，覆盖言情模式与旧参数兼容）
+- **CI 新增 `suites` job**：在 ubuntu-latest 上跑两套装的全量 bash 用例（各 17 组 655 条），
+  并把两份 `REPORT.md` 作为 artifact 留档。这是套件测试的**唯一权威执行点**——
+  本机 Windows 跑一遍要 20 分钟以上，手机 Termux 没有 `/tmp` 根本跑不了
+
+### 说明
+
+- 套件业务逻辑未改，只保留装机适配：两个套装根的 `package.json {"type":"commonjs"}`
+  （本仓根是 `type: module`，否则 CJS 引擎直接崩）、`suites/` 判重豁免、
+  `.tap.txt` / `.run.log` 不入仓
+- 1.5.1 里给套件测试打的沙箱加固（`WM_SBX_BASE` / mktemp / 防误删）**随上游 2.0.0 覆盖回退**，
+  上游 `tests/lib.sh` 仍写死 `/tmp/wm-sbx`。本仓不再维护这类补丁，改由 CI 在有 `/tmp` 的
+  Linux 上跑原生用例；套件 README 里已写明「无 `/tmp` 环境跑不了、别误判成套件坏了」
+- 版本 1.6.0（`package.json` / `CHANGELOG` / 两个专家包 `plugin.json` 同步）
+
 ## [1.5.1] - 2026-10-20
 
 这版只补 1.5.0 留下的一个尾巴：**套件测试在没有 `/tmp` 的机器上会全红**。

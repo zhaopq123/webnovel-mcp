@@ -71,7 +71,10 @@ const RULES = [
 // 哈希锁文件豁免：catalog/source-lock 的 sha256 是防篡改锁的功能字段，不是泄漏令牌。
 // 其余规则（IP/邮箱/用户目录/登录名）对这两个文件照扫不误。
 
-const LOCAL_USER = process.env.USERNAME || process.env.USER || '';
+// 只在开发者本机生效：CI 上 USERNAME/USER 恒为 runner / root 这类通用词，
+// 拿它去搜全仓会把英文正文一起判红（实测：README 里写了 "ubuntu runner" 就让 CI 红）。
+// 这条规则要抓的是「作者自己机器的登录名」，CI 服务账号不属于作者环境。
+const LOCAL_USER = process.env.CI ? '' : process.env.USERNAME || process.env.USER || '';
 if (LOCAL_USER.length >= 2) {
   RULES.push({ name: `本机登录名「${LOCAL_USER}」`, pattern: new RegExp(`(?<![\\w-])${LOCAL_USER}(?![\\w-])`) });
 }

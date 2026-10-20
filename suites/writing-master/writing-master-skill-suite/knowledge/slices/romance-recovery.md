@@ -1,6 +1,7 @@
 ---
 id: romance-recovery
-track: romance
+track: novel
+genre: romance
 stage: recover
 source: "romance-engine-v8.1.md"
 words: 351

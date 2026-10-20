@@ -1,6 +1,7 @@
 ---
 id: romance-ledger-review
-track: romance
+track: novel
+genre: romance
 stage: review
 source: "romance-engine-v8.1.md"
 words: 1270

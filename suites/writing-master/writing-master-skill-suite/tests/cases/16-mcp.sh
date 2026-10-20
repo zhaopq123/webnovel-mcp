@@ -34,10 +34,10 @@ done
 
 echo "### tools/call 调用闭环"
 call() { printf '%s\n' "{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"tools/call\",\"params\":{\"name\":\"$1\",\"arguments\":$2}}" | node "$MCP" --root "$SBX" 2>/dev/null; }
-R=$(call wm_init '{"track":"romance","title":"MCP言情","target_words":60000,"dir":"'"$SBX"'/pj2"}')
+R=$(call wm_init '{"track":"novel","genre":"romance","title":"MCP言情","target_words":60000,"dir":"'"$SBX"'/pj2"}')
 echo "$R" | grep -q '"isError":false' && pass "wm_init 经 MCP 执行成功" || fail "wm_init 失败: $R"
 echo "$R" | grep -q "初始化完成" && pass "wm_init 输出回传" || fail "输出未回传"
-jget "$SBX/pj2/.wm/state.json" "o.title==='MCP言情'&&o.track==='romance'" "MCP init 落盘正确"
+jget "$SBX/pj2/.wm/state.json" "o.title==='MCP言情'&&o.track==='novel'&&o.genre==='romance'" "MCP init 落盘正确"
 
 printf '# 第1章\n- 场景：夜市初遇\n' > "$SBX/o1.md"
 R=$(call wm_outline '{"dir":"'"$SBX"'/pj2","save":"chapter","num":1,"file":"'"$SBX"'/o1.md"}')

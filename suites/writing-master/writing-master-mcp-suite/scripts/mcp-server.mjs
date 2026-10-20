@@ -21,13 +21,15 @@ for (let i = 0; i < args.length; i++) {
 const BOOL = { type: 'boolean', description: '开关（无值参数）' };
 const TOOLS = [
   {
-    name: 'wm_init', description: '初始化作品项目（创建 .wm/ 账本）。track 五大赛道：novel 长篇小说 / romance 言情网文 / screenplay 剧本 / jubensha 剧本杀 / toolbook 工具书',
+    name: 'wm_init', description: '初始化作品项目（创建 .wm/ 账本）。track 四大赛道：novel 长篇小说 / screenplay 剧本 / jubensha 剧本杀 / toolbook 工具书；novel 下可选 genre=romance 开启言情模式（v8.1 引擎，恋爱为绝对主线的题材用）',
     inputSchema: { type: 'object', required: ['track', 'title', 'target_words'], properties: {
-      track: { type: 'string', enum: ['novel', 'romance', 'screenplay', 'jubensha', 'toolbook'] },
+      track: { type: 'string', enum: ['novel', 'screenplay', 'jubensha', 'toolbook'] },
+      genre: { type: 'string', enum: ['general', 'romance'], description: '仅 novel 支持；romance=言情模式' },
       title: { type: 'string' }, target_words: { type: 'number', minimum: 1 },
       mode: { type: 'string', enum: ['auto', 'collab'] },
       dir: { type: 'string' }, no_outline_gate: BOOL } },
     map: a => ['--track', a.track, '--title', a.title, '--target-words', String(a.target_words),
+      ...(a.genre ? ['--genre', a.genre] : []),
       ...(a.mode ? ['--mode', a.mode] : []), ...(a.dir ? ['--dir', a.dir] : []),
       ...(a.no_outline_gate ? ['--no-outline-gate'] : [])]
   },
@@ -92,7 +94,7 @@ const TOOLS = [
       ...(a.keyword ? ['--keyword', a.keyword] : []), ...(a.top ? ['--top', String(a.top)] : [])]
   },
   {
-    name: 'wm_pacing', description: '三线节奏体检：quest 主线/fire 感情线/constellation 世界观 占比与断档检测，按赛道换算理想配比，输出修复建议',
+    name: 'wm_pacing', description: '三线节奏体检：quest 主线/fire 感情线/constellation 世界观 占比与断档检测，按赛道（言情模式专用 40:40:20）换算理想配比，输出修复建议',
     inputSchema: { type: 'object', properties: { dir: { type: 'string' }, window: { type: 'number', minimum: 3 } } },
     map: a => ['--dir', a.dir || defaultRoot || '.', ...(a.window ? ['--window', String(a.window)] : [])]
   },
@@ -159,7 +161,7 @@ function handleLine(line) {
     return rpcResult(id, {
       protocolVersion: '2024-11-05',
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: 'writing-master', version: '1.2.0' }
+      serverInfo: { name: 'writing-master', version: '2.0.0' }
     });
   }
   if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;

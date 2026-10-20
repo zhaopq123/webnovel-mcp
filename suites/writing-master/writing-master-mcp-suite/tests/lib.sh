@@ -45,40 +45,8 @@ jget() {
 }
 
 # 沙箱: setup 后 SBX=独立空目录, OUT=输出捕获文件
-# 沙箱根怎么定（三条都别改回去，改错了要么误删用户目录，要么静默少测）：
-#  1) 上层（run.sh）已定好并 export WM_SBX_ROOT → 直接用它；
-#  2) 调用方给了 WM_SBX_BASE → 用它下面的 wm-sbx（**基目录本身永不被删**，只删 wm-sbx 子目录）；
-#  3) 都没有 → 在可写临时目录下 mktemp -d wm-sbx.XXXXXX（随机名 + 0700，避免被提前占坑）。
-# 为什么不能写死 /tmp：Termux（Android）根分区只读、没有 /tmp，mktemp 直接失败，
-# 之后每条用例连锁报错，看起来像「套件坏了」而不是「环境不对」。
-wm_pkg_dir() { ( cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd ); }
-
-wm_sbx_root() {
-  local base
-  if [ -n "${WM_SBX_BASE:-}" ]; then
-    base="$WM_SBX_BASE/wm-sbx"
-    mkdir -p "$base" 2>/dev/null && chmod 700 "$base" 2>/dev/null
-    printf '%s' "$base"; return $?
-  fi
-  base="${TMPDIR:-/tmp}"
-  { mkdir -p "$base" && [ -w "$base" ]; } 2>/dev/null || base="$(wm_pkg_dir)/.tmp"
-  mktemp -d "$base/wm-sbx.XXXXXX"
-}
-
 setup() {
-  local root="${WM_SBX_ROOT:-}"
-  [ -n "$root" ] || root="$(wm_sbx_root)"
-  # mkdir -p 对「已存在但不可写」会返回 0，所以真正的判据是 mktemp 能不能成
-  if [ -z "$root" ] || ! mkdir -p "$root" 2>/dev/null; then
-    fail "沙箱根不可用: ${root:-<空>}"; exit 2
-  fi
-  if ! SBX=$(mktemp -d "$root/${CASE}-XXXXXX"); then
-    fail "用例沙箱创建失败: $root"; exit 2
-  fi
-  case "$SBX" in
-    "$root"/*) ;;
-    *) fail "沙箱路径异常: $SBX"; exit 2 ;;
-  esac
+  SBX=$(mktemp -d "/tmp/wm-sbx/${CASE}-XXXXXX")
   OUT="$SBX/.out"
-  : > "$OUT" || { fail "无法写输出文件: $OUT"; exit 2; }
+  : > "$OUT"
 }

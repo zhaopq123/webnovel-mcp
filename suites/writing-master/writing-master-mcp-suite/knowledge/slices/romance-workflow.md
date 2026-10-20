@@ -1,6 +1,7 @@
 ---
 id: romance-workflow
-track: romance
+track: novel
+genre: romance
 stage: workflow
 source: "romance-engine-v8.1.md"
 words: 857

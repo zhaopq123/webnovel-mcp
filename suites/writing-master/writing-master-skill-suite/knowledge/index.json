@@ -230,7 +230,8 @@
   },
   {
     "id": "romance-init-role",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "init",
     "file": "slices/romance-init-role.md",
     "words": 916,
@@ -238,7 +239,8 @@
   },
   {
     "id": "romance-core-psych",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "core",
     "file": "slices/romance-core-psych.md",
     "words": 357,
@@ -246,7 +248,8 @@
   },
   {
     "id": "romance-workflow",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "workflow",
     "file": "slices/romance-workflow.md",
     "words": 857,
@@ -254,7 +257,8 @@
   },
   {
     "id": "romance-pov",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-pov.md",
     "words": 653,
@@ -262,7 +266,8 @@
   },
   {
     "id": "romance-info-gap",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-info-gap.md",
     "words": 491,
@@ -270,7 +275,8 @@
   },
   {
     "id": "romance-language",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-language.md",
     "words": 801,
@@ -278,7 +284,8 @@
   },
   {
     "id": "romance-dialogue",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-dialogue.md",
     "words": 502,
@@ -286,7 +293,8 @@
   },
   {
     "id": "romance-golden-three",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "golden3",
     "file": "slices/romance-golden-three.md",
     "words": 843,
@@ -294,7 +302,8 @@
   },
   {
     "id": "romance-hooks-pace",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-hooks-pace.md",
     "words": 850,
@@ -302,7 +311,8 @@
   },
   {
     "id": "romance-antitrope",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "write",
     "file": "slices/romance-antitrope.md",
     "words": 685,
@@ -310,7 +320,8 @@
   },
   {
     "id": "romance-ledger-review",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "review",
     "file": "slices/romance-ledger-review.md",
     "words": 1270,
@@ -318,7 +329,8 @@
   },
   {
     "id": "romance-recovery",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "recover",
     "file": "slices/romance-recovery.md",
     "words": 351,
@@ -326,7 +338,8 @@
   },
   {
     "id": "romance-output",
-    "track": "romance",
+    "track": "novel",
+    "genre": "romance",
     "stage": "protocol",
     "file": "slices/romance-output.md",
     "words": 564,

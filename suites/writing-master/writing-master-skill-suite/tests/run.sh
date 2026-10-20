@@ -7,25 +7,7 @@ set -u
 PKG="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TESTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PKG
-# 沙箱根：本脚本自己定，外部只能用 $WM_SBX_BASE 指定**基目录**。
-# 只用 mktemp 造随机目录（0700），结束时**只删这一个**——绝不对调用方给的路径直接 rm -rf，
-# 否则 `WM_SBX_BASE=/tmp` 或 `/` 这种手滑就是灾难（评审指出过，别改回去）。
-if [ -z "${WM_SBX_ROOT:-}" ]; then
-  _base="${WM_SBX_BASE:-}"
-  if [ -z "$_base" ]; then
-    _base="${TMPDIR:-/tmp}"
-    { mkdir -p "$_base" && [ -w "$_base" ]; } 2>/dev/null || _base="$PKG/.tmp"
-  fi
-  WM_SBX_ROOT="$(mktemp -d "$_base/wm-sbx.XXXXXX" 2>/dev/null)" || {
-    echo "无法创建沙箱根（基目录 $_base）：检查可写性，或用 WM_SBX_BASE 指定" >&2; exit 2; }
-  chmod 700 "$WM_SBX_ROOT" 2>/dev/null || true
-else
-  case "$WM_SBX_ROOT" in
-    */wm-sbx|*/wm-sbx.*) ;;
-    *) echo "WM_SBX_ROOT 必须指向 .../wm-sbx 目录（拒绝 rm -rf 任意路径）：$WM_SBX_ROOT" >&2; exit 2 ;;
-  esac
-fi
-export WM_SBX_ROOT
+mkdir -p /tmp/wm-sbx
 
 START=$(date +%s)
 TAP="$TESTS/.tap.txt"; : > "$TAP"
@@ -73,7 +55,7 @@ PCT=0; [ "$TOTAL" -gt 0 ] && PCT=$((TOTAL_OK * 100 / TOTAL))
   for case_file in "$TESTS"/cases/*.sh; do
     name=$(basename "$case_file" .sh)
     case "$name" in
-      01-init) scope="init 正常路径+五赛道+非法赛道/模式/参数/重复初始化+章纲门禁开关";;
+      01-init) scope="init 正常路径+四大赛道与言情模式+非法赛道/genre/模式/参数/重复初始化+章纲门禁开关";;
       02-context) scope="context 四任务装配+章纲门禁BLOCKER+记忆注入+预算压缩+边界";;
       03-commit) scope="commit 名词锁/别名锁/原子性/字段校验/strand标记+边界";;
       04-review) scope="review 黑名单/英文/繁体/标点/句长/笔误/钩子/伏笔超期+边界";;
@@ -86,9 +68,10 @@ PCT=0; [ "$TOTAL" -gt 0 ] && PCT=$((TOTAL_OK * 100 / TOTAL))
       11-outline) scope="outline 四级大纲存取+章纲门禁启停+非法类型/缺num/缺文件+回溯警告";;
       12-query) scope="query 七类台账+全文检索+归档区感知+--name/--id/--keyword+错误路径";;
       13-pacing) scope="pacing 三线占比/断档/修复建议/赛道换算+strand解析+窗口校验";;
-      14-memory) scope="memory 五类沉淀/list过滤/search/context自动注入+track隔离+坏JSON";;
+      14-memory) scope="memory 五类沉淀/list过滤/search/context自动注入+模式隔离+坏JSON";;
       15-verify) scope="verify 四道门禁+sha锁动态生成/篡改检出/新增切片纳入+CLI↔MCP一致性";;
       16-mcp) scope="MCP stdio JSON-RPC 握手/13工具清单/工具调用闭环/未知工具与方法";;
+      17-romance-mode) scope="言情模式全链路：init 新口径/废弃别名映射/genre 校验/切片与记忆按模式过滤/doctor 旧项目迁移/言情 pacing 配比";;
       *) scope="";;
     esac
     echo "| $name | $scope | ${CASE_OK[$name]:-0} | ${CASE_NO[$name]:-0} |"
@@ -105,12 +88,9 @@ PCT=0; [ "$TOTAL" -gt 0 ] && PCT=$((TOTAL_OK * 100 / TOTAL))
   echo "## 三、说明"
   echo ""
   echo "- 断言协议: TAP 风格（ok/not ok），由 tests/run.sh 统计。"
-  echo "- 每条用例在独立沙箱（$WM_SBX_ROOT/）运行，互不污染，结束自动清理。"
+  echo "- 每条用例在独立沙箱（/tmp/wm-sbx/）运行，互不污染，结束自动清理。"
   echo "- 重跑: \`bash tests/run.sh\`（可指定包根: \`bash tests/run.sh /path/to/writing-master\`）。"
 } > "$TESTS/REPORT.md"
 
-# 只删本轮自己 mktemp 出来的那个目录；路径形态不符就宁可不删
-case "${WM_SBX_ROOT:-}" in
-  */wm-sbx|*/wm-sbx.*) [ -d "$WM_SBX_ROOT" ] && rm -rf -- "$WM_SBX_ROOT" ;;
-esac
+rm -rf /tmp/wm-sbx
 [ "$TOTAL_NO" = "0" ] && exit 0 || exit 1

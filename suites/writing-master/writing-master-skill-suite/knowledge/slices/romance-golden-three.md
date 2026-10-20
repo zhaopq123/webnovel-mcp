@@ -1,6 +1,7 @@
 ---
 id: romance-golden-three
-track: romance
+track: novel
+genre: romance
 stage: golden3
 source: "romance-engine-v8.1.md"
 words: 843

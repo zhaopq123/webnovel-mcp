@@ -14,9 +14,24 @@ const path = require('path');
 
 /* ───────────────────────── 常量 ───────────────────────── */
 
-const TRACKS = ['novel', 'romance', 'screenplay', 'jubensha', 'toolbook'];
+/* v2.0 赛道口径：四大赛道 + novel 赛道下的言情模式（genre）。
+ * 原 v1.x 独立赛道 romance 已整体并入 novel（言情模式），一条规则未删；
+ * 旧参数 --track romance 保留为废弃别名，自动映射 novel+genre=romance。 */
+const TRACKS = ['novel', 'screenplay', 'jubensha', 'toolbook'];
+const GENRES = ['general', 'romance'];
 const MODES = ['auto', 'collab'];
 const TASKS = ['plan', 'write', 'review', 'report'];
+
+/* 状态归一：v1.x 旧项目 state.track='romance' 自动按 novel·言情模式处理（不回写文件） */
+function normalizeState(st) {
+  if (st.track === 'romance') { st.track = 'novel'; if (st.genre === undefined) st.genre = 'romance'; }
+  if (st.genre === undefined) st.genre = 'general';
+  return st;
+}
+/* 展示口径：novel+言情模式 显示为 novel·言情模式，其余赛道原样 */
+function trackLabel(st) {
+  return st && st.track === 'novel' && st.genre === 'romance' ? 'novel·言情模式' : String(st && st.track);
+}
 
 /* 三线节奏模型（wm-pacing 体检 + summary.strand 标记）：
  * quest=主线剧情 / fire=感情线 / constellation=世界观扩展。
@@ -30,7 +45,7 @@ const STRAND_META = {
 /* 赛道换算表（pacing 体检按作品赛道取此配比） */
 const TRACK_PACING = {
   novel: { quest: 0.6, fire: 0.2, constellation: 0.2, note: '网文行业基线 6:2:2' },
-  romance: { quest: 0.4, fire: 0.4, constellation: 0.2, note: '言情赛道感情线提至 40% 起' },
+  romance: { quest: 0.4, fire: 0.4, constellation: 0.2, note: '言情模式感情线提至 40% 起' },
   screenplay: { quest: 0.5, fire: 0.3, constellation: 0.2, note: '剧本每集须触碰全部三线' },
   jubensha: { quest: 0.5, fire: 0.3, constellation: 0.2, note: '剧本杀换算：案线/情感线/机制线 5:3:2' },
   toolbook: { quest: 0.6, fire: 0.2, constellation: 0.2, note: '工具书换算：论点/案例/方法线 6:2:2' }
@@ -43,7 +58,7 @@ const MEMORY_KIND_LABEL = {
 };
 
 const USAGE = {
-  init: '用法: bash wm-init.sh --track <novel|romance|screenplay|jubensha|toolbook> --title <名> --target-words <N> [--mode auto|collab] [--dir <目录>] [--no-outline-gate]',
+  init: '用法: bash wm-init.sh --track <novel|screenplay|jubensha|toolbook> --title <名> --target-words <N> [--genre <general|romance>] [--mode auto|collab] [--dir <目录>] [--no-outline-gate]（言情模式: --track novel --genre romance；旧参数 --track romance 已废弃，仍可用并自动映射）',
   context: '用法: bash wm-context.sh [--dir <目录>] [--task <plan|write|review|report>] [--chapter N] [--budget N]',
   commit: '用法: bash wm-commit.sh --dir <目录> --file <更新.json>',
   review: '用法: bash wm-review.sh --dir <目录> --file <稿件.md> [--chapter N]',
@@ -59,7 +74,7 @@ const USAGE = {
 };
 
 const MAIN_USAGE = `WritingMaster 脚本引擎 · 子命令:
-  wm-init.sh    初始化作品项目（创建 .wm/ 账本）
+  wm-init.sh    初始化作品项目（创建 .wm/ 账本；四大赛道 + novel·言情模式 --genre romance）
   wm-context.sh 动笔前上下文装配（章纲门禁 + 写作记忆自动注入）
   wm-commit.sh  事实增量提交（名词锁校验 + 三线 strand 标记）
   wm-review.sh  稿件机械审查门禁
@@ -150,7 +165,7 @@ function readJSONFile(f, what) {
 function writeJSONFile(f, o) {
   fs.writeFileSync(f, JSON.stringify(o, null, 2) + '\n', 'utf8');
 }
-function loadState(dir) { return readJSONFile(path.join(wmPath(dir), 'state.json'), 'state.json'); }
+function loadState(dir) { return normalizeState(readJSONFile(path.join(wmPath(dir), 'state.json'), 'state.json')); }
 function saveState(dir, st) {
   st.updated_at = nowISO();
   writeJSONFile(path.join(wmPath(dir), 'state.json'), st);
@@ -262,11 +277,17 @@ function archivedChapterSet(dir) {
 
 function cmdInit(a) {
   const dir = a.dir || process.cwd();
-  const track = a.track, title = (a.title || '').trim(), mode = a.mode || 'auto';
+  let track = a.track, title = (a.title || '').trim(), mode = a.mode || 'auto', genre = a.genre;
   if (!track) usageErr('缺少必填参数 --track', 'init');
   if (!title) usageErr('缺少必填参数 --title', 'init');
   if (a['target-words'] === undefined) usageErr('缺少必填参数 --target-words', 'init');
-  if (!TRACKS.includes(track)) fail(`无效赛道 --track "${track}"（可选: ${TRACKS.join(' | ')}）`);
+  /* v2.0 迁移：旧赛道参数 romance → novel·言情模式（废弃别名，不再单列赛道） */
+  let legacyRomance = false;
+  if (track === 'romance') { track = 'novel'; if (genre === undefined) genre = 'romance'; legacyRomance = true; }
+  if (!TRACKS.includes(track)) fail(`无效赛道 --track "${track}"（可选: ${TRACKS.join(' | ')}；言情模式请用 --track novel --genre romance）`);
+  if (genre === undefined) genre = 'general';
+  if (!GENRES.includes(genre)) fail(`无效子模式 --genre "${genre}"（可选: ${GENRES.join(' | ')}）`);
+  if (genre !== 'general' && track !== 'novel') fail(`--genre "${genre}" 仅支持 novel 赛道（言情模式用法: --track novel --genre romance）`);
   if (!MODES.includes(mode)) fail(`无效模式 --mode "${mode}"（可选: ${MODES.join(' | ')}）`);
   if (!/^\d+$/.test(a['target-words']) || +a['target-words'] <= 0) fail(`--target-words 必须为正整数（收到: "${a['target-words']}"）`);
 
@@ -278,7 +299,7 @@ function cmdInit(a) {
   fs.mkdirSync(path.join(wm, 'archive'), { recursive: true });
 
   const state = {
-    track, mode, title,
+    track, mode, title, genre,
     target_words: +a['target-words'],
     part: 1, volume: 1, chapter: 0, total_words: 0,
     updated_at: nowISO(), stage: 'init',
@@ -299,7 +320,8 @@ function cmdInit(a) {
   fs.writeFileSync(commitsLogPath(dir), '', 'utf8');
 
   p('✓ 项目初始化完成');
-  p(`  目录: ${path.resolve(dir)}  (赛道=${track}  模式=${mode})`);
+  p(`  目录: ${path.resolve(dir)}  (赛道=${trackLabel(state)}  引擎=${genre === 'romance' ? '言情v8.1' : '通用19节'}  模式=${mode})`);
+  if (legacyRomance) p('  ⚠ 旧参数 --track romance 已废弃（v2.0 并入 novel 赛道言情模式），本次已按 --track novel --genre romance 处理，后续请使用新口径');
   p(`  标题: 《${title}》  目标体量: ${fmtNum(state.target_words)} 字`);
   p('  账本: state.json · parts.json · commits.log · ledger/{names.tsv, characters.json, foreshadow.json, timeline.json, suspense.json, info-gap.json, plotlines.json}');
   p('  目录: summaries/（章/部摘要） · archive/（归档部）');
@@ -373,11 +395,18 @@ function knowledgeSliceLines(scriptsDir, state, task, cap) {
     items = JSON.parse(fs.readFileSync(idx, 'utf8'));
     if (!Array.isArray(items)) throw new Error('index.json 应为数组');
   } catch (e) { return [`◦ 知识切片索引不可用（${e.message}），跳过切片推荐`]; }
-  let matched = items.filter(it => !it.track || it.track === state.track);
+  /* v2.0 切片匹配：track + genre 双过滤。genre=romance 为言情模式专用切片；
+   * 无 genre 字段的条目为赛道通用切片，对所有该 track 作品生效。 */
+  const genre = state.genre || 'general';
+  let matched = items.filter(it => (!it.track || it.track === state.track) && (!it.genre || it.genre === genre));
   const re = TASK_STAGE_RE[task] || null;
   const byStage = re ? matched.filter(it => it.stage && re.test(String(it.stage))) : [];
   if (byStage.length) matched = byStage;
-  if (!matched.length) return [`◦ 未找到适配「${state.track}」赛道的切片`];
+  /* 言情模式：专用切片（genre=romance）优先展示，赛道通用切片殿后 */
+  if (state.track === 'novel' && genre === 'romance') {
+    matched = [...matched].sort((a, b) => ((b.genre === 'romance') ? 1 : 0) - ((a.genre === 'romance') ? 1 : 0));
+  }
+  if (!matched.length) return [`◦ 未找到适配「${trackLabel(state)}」的切片`];
   return matched.slice(0, cap).map(it =>
     `- ${it.id || '(无id)'} | ${it.file ? path.join('knowledge', String(it.file)) : '(路径未知)'} | ${it.words || '?'} 字` +
     (it.trigger ? ` | 触发: ${String(it.trigger).slice(0, 20)}` : ''));
@@ -414,7 +443,7 @@ function cmdContext(a) {
 
   const headLines = [
     `═══ WritingMaster 上下文装配 ═══`,
-    `作品: 《${state.title}》 (${state.track}/${state.mode}) | 阶段: ${state.stage}`,
+    `作品: 《${state.title}》 (${trackLabel(state)}/${state.mode}) | 阶段: ${state.stage}`,
     `任务: ${task} | 焦点章节: 第 ${baseCh} 章`
   ];
   const pct = state.target_words ? (state.total_words / state.target_words * 100) : 0;
@@ -433,7 +462,8 @@ function cmdContext(a) {
     outlineLines.push(`  ◦ 未存章纲${state.outline_gate ? '' : '（outline_gate 未启用）'}`);
   }
 
-  /* v1.2 写作记忆注入：最近 5 条与本书赛道相关的经验（跨章复用有效写法） */
+  /* v1.2 写作记忆注入：最近 5 条与本书赛道相关的经验（跨章复用有效写法）
+   * v2.0 语义：条目 track 为空/all → 通用注入；显式 genre（或旧 romance 标记）→ 仅同模式书注入。 */
   const memLines = ['── 写作记忆（最近沉淀，按需取用） ──'];
   let memN = 0;
   const memFile = path.join(wmPath(dir), 'memory.json');
@@ -441,9 +471,17 @@ function cmdContext(a) {
     try {
       const mem = readJSONFile(memFile, 'memory.json');
       const entries = Array.isArray(mem.entries) ? mem.entries : [];
-      const matched = entries.filter(e => !e.track || e.track === state.track || e.track === 'all').slice(-5).reverse();
+      const matched = entries.filter(e => {
+        const rawTrack = String(e.track || '');
+        const t = rawTrack === 'romance' ? 'novel' : rawTrack;
+        if (t && t !== 'all' && t !== state.track) return false;
+        const g = e.genre || (rawTrack === 'romance' ? 'romance' : '');
+        if (g && g !== 'all' && g !== (state.genre || 'general')) return false;
+        return true;
+      }).slice(-5).reverse();
       for (const e of matched) {
-        memLines.push(`  ◦ [${MEMORY_KIND_LABEL[e.kind] || e.kind || '经验'}] ${String(e.title).slice(0, 30)} — ${String(e.content).slice(0, 60)}${String(e.content).length > 60 ? '…' : ''}`);
+        const lbl = e.track ? (e.track === 'romance' ? 'novel·言情' : e.track) : '';
+        memLines.push(`  ◦ [${MEMORY_KIND_LABEL[e.kind] || e.kind || '经验'}] ${String(e.title).slice(0, 30)} — ${String(e.content).slice(0, 60)}${String(e.content).length > 60 ? '…' : ''}${lbl ? ` (${lbl})` : ''}`);
         memN++;
       }
     } catch (_) { /* 记忆损坏不阻塞装配 */ }
@@ -1020,7 +1058,7 @@ function cmdStatus(a) {
   const filled = Math.min(20, Math.round(pct / 5));
 
   p('═══ WritingMaster 进度面板 ═══');
-  p(`作品: 《${state.title}》 | 赛道: ${state.track} | 模式: ${state.mode} | 阶段: ${state.stage}`);
+  p(`作品: 《${state.title}》 | 赛道: ${trackLabel(state)} | 模式: ${state.mode} | 阶段: ${state.stage}`);
   p(`进度: 第 ${state.part} 部 · 第 ${state.volume} 卷 · 已写 ${state.chapter} 章`);
   p(`字数: ${fmtNum(state.total_words)} / ${fmtNum(state.target_words)} (${pct.toFixed(2)}%)`);
   p(`[${'█'.repeat(filled)}${'░'.repeat(20 - filled)}]`);
@@ -1245,7 +1283,7 @@ function cmdRestore(a) {
   p('── 账本完整性: 通过 ──');
   p('');
   p('── 当前状态 ──');
-  p(`  作品: 《${state.title}》（${state.track}/${state.mode}）| 阶段: ${state.stage}`);
+  p(`  作品: 《${state.title}》（${trackLabel(state)}/${state.mode}）| 阶段: ${state.stage}`);
   p(`  第 ${state.part} 部 · 第 ${state.volume} 卷 · 已写 ${state.chapter} 章 | 字数 ${fmtNum(state.total_words)} / ${fmtNum(state.target_words)}（${(state.total_words / state.target_words * 100).toFixed(2)}%）`);
   const partsObj = loadParts(dir);
   const cur = partsObj.parts.find(x => x.part === state.part);
@@ -1288,18 +1326,24 @@ function cmdDoctor(a) {
   const R = (level, id, msg) => results.push({ level, id, msg });
   const MAXD = 8;
 
-  /* D01 state.json 合法性 */
+  /* D01 state.json 合法性（v2.0：旧赛道 romance 自动按 novel·言情模式处理并提示迁移） */
   let state = null;
   try {
     state = JSON.parse(fs.readFileSync(path.join(wm, 'state.json'), 'utf8'));
-    const need = ['track', 'mode', 'title', 'target_words', 'part', 'volume', 'chapter', 'total_words', 'updated_at', 'stage'];
-    const miss = need.filter(k => state[k] === undefined);
-    if (miss.length) R('FAIL', 'D01', `state.json 缺字段: ${miss.join(', ')}`);
-    else if (!TRACKS.includes(state.track)) R('FAIL', 'D01', `state.track 无效: ${state.track}`);
-    else if (!Number.isInteger(state.target_words) || state.target_words <= 0) R('FAIL', 'D01', 'state.target_words 应为正整数');
-    else if (!Number.isInteger(state.chapter) || state.chapter < 0) R('FAIL', 'D01', 'state.chapter 应为非负整数');
-    else if (!Number.isInteger(state.part) || state.part < 1) R('FAIL', 'D01', 'state.part 应为 ≥1 整数');
-    else R('OK', 'D01', 'state.json 合法且字段齐全');
+    const legacyRomance = state.track === 'romance';
+    normalizeState(state);
+    if (state.genre !== undefined && !GENRES.includes(state.genre)) R('FAIL', 'D01', `state.genre 无效: ${state.genre}（可选: ${GENRES.join(' | ')}）`);
+    else if (legacyRomance) R('WARN', 'D01', `旧版赛道 "romance" 已并入 novel（v2.0），本次按 novel·言情模式处理；建议把 state.json 的 track 改为 "novel" 并加 "genre": "romance" 完成迁移`);
+    else {
+      const need = ['track', 'mode', 'title', 'target_words', 'part', 'volume', 'chapter', 'total_words', 'updated_at', 'stage'];
+      const miss = need.filter(k => state[k] === undefined);
+      if (miss.length) R('FAIL', 'D01', `state.json 缺字段: ${miss.join(', ')}`);
+      else if (!TRACKS.includes(state.track)) R('FAIL', 'D01', `state.track 无效: ${state.track}`);
+      else if (!Number.isInteger(state.target_words) || state.target_words <= 0) R('FAIL', 'D01', 'state.target_words 应为正整数');
+      else if (!Number.isInteger(state.chapter) || state.chapter < 0) R('FAIL', 'D01', 'state.chapter 应为非负整数');
+      else if (!Number.isInteger(state.part) || state.part < 1) R('FAIL', 'D01', 'state.part 应为 ≥1 整数');
+      else R('OK', 'D01', 'state.json 合法且字段齐全');
+    }
   } catch (e) { R('FAIL', 'D01', `state.json 不是合法 JSON: ${e.message}`); }
 
   /* D02 文件完整性 */
@@ -1681,12 +1725,12 @@ function cmdPacing(a) {
   for (const s of strands) counts[STRANDS.includes(s.strand) ? s.strand : 'unknown']++;
   const total = strands.length;
 
-  /* 赛道换算：按作品赛道取理想配比（TRACK_PACING），断档阈值不变 */
-  const tp = TRACK_PACING[state.track] || TRACK_PACING.novel;
+  /* 赛道换算：言情模式（novel+genre=romance）取专用配比，其余按赛道取（TRACK_PACING），断档阈值不变 */
+  const tp = TRACK_PACING[(state.track === 'novel' && state.genre === 'romance') ? 'romance' : state.track] || TRACK_PACING.novel;
 
   p('═══ WritingMaster 三线节奏体检 ═══');
   p(`作品: 《${state.title}》 | 窗口: 最近 ${total} 章（ch${recent[0].ch}–ch${recent[recent.length - 1].ch}）`);
-  p(`赛道换算: ${state.track} → ${tp.note}`);
+  p(`赛道换算: ${trackLabel(state)} → ${tp.note}`);
   p('');
   p('── 三线占比 ──');
   for (const k of STRANDS) {
@@ -1766,6 +1810,7 @@ function cmdMemory(a) {
       content: e.content.trim(),
       tags: Array.isArray(e.tags) ? e.tags.map(String) : [],
       track: e.track || '',
+      genre: e.genre || (e.track === 'romance' ? 'romance' : ''),
       chapter: Number.isInteger(e.chapter) ? e.chapter : null,
       created_at: nowISO()
     };
@@ -1786,7 +1831,7 @@ function cmdMemory(a) {
     p('═══ WritingMaster 写作记忆 ═══');
     if (!list.length) { p('（暂无记忆' + (a.kind ? `（kind=${a.kind}）` : '') + '）'); p('下一步建议: --add 沉淀第一条有效写法'); return; }
     for (const e of [...list].reverse().slice(0, 30)) {
-      p(`◦ ${e.id} [${MEMORY_KIND_LABEL[e.kind] || e.kind}] ${e.title}${e.track ? ` (${e.track})` : ''}`);
+      p(`◦ ${e.id} [${MEMORY_KIND_LABEL[e.kind] || e.kind}] ${e.title}${e.track ? ` (${e.track === 'romance' ? 'novel·言情' : e.track})` : ''}`);
       p(`    ${String(e.content).slice(0, 70)}${String(e.content).length > 70 ? '…' : ''}`);
     }
     if (list.length > 30) p(`…（共 ${list.length} 条）`);
@@ -1989,7 +2034,7 @@ if (!CMDS[cmd]) {
   process.exit(2);
 }
 const SPECS = {
-  init: { spec: { track: 1, title: 1, 'target-words': 1, mode: 1, dir: 1, 'no-outline-gate': 0 }, required: [] },
+  init: { spec: { track: 1, title: 1, 'target-words': 1, genre: 1, mode: 1, dir: 1, 'no-outline-gate': 0 }, required: [] },
   context: { spec: { dir: 1, task: 1, chapter: 1, budget: 1 }, required: [] },
   commit: { spec: { dir: 1, file: 1 }, required: ['file'] },
   review: { spec: { dir: 1, file: 1, chapter: 1 }, required: ['file'] },

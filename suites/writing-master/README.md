@@ -12,15 +12,18 @@
 两套装内容几乎同源（同一份 `knowledge/`、`templates/`、`scripts/`、`skills/`），
 差别只在 README 与 `tests/` 的运行产物；`mcp-suite` 里 `skills/` 用不上但保留。
 
-## 内含规模（实测）
+## 内含规模（v2.0.0 实测）
 
 - 82 张知识切片（`knowledge/slices/`，带 `index.json` + `lock.json` 指纹锁）
-- 29 个交付模板（`templates/`，覆盖 novel / romance / screenplay / jubensha / toolbook 五赛道）
-- 6 个技能（`skills/writing-master` 主路由 + 5 个 `wm-*` 赛道）
+- 29 个交付模板（`templates/`，覆盖 novel（含言情模式）/ screenplay / jubensha / toolbook 四赛道）
+- 5 个技能（`skills/writing-master` 主路由 + `wm-novel` / `wm-screenplay` / `wm-jubensha` / `wm-toolbook`）
+  - **v2.0 起言情不再单列赛道**：并入 `wm-novel` 作为「言情模式」（`--track novel --genre romance`）；
+    旧的 `--track romance` 仍可用并自动映射，只是会打废弃提示；`romance-*` 知识切片一条没删
 - 13 条命令（`scripts/wm-*.sh`）+ 1 个 Node 引擎（`scripts/wm.js`，零第三方依赖）
-- 605 条自测（`tests/`，可删，删了不影响使用；`bash tests/run.sh` 跑。沙箱根自动挑可写目录并
-  `mktemp` 出随机子目录，没有 `/tmp` 的 Termux 也能直接跑；想指定位置用 `WM_SBX_BASE=<基目录>`，
-  收尾只删本轮自己建的 `wm-sbx.XXXXXX`，不会碰你给的基目录）
+- 655 条自测 / 17 组用例（`tests/`，可删，删了不影响使用）
+  - **跑法**：`bash tests/run.sh`。**注意**：v2.0 的 `tests/lib.sh` 仍把沙箱写死为 `/tmp/wm-sbx`，
+    没有 `/tmp` 的环境（Android/Termux、只读根分区的容器）会连锁失败——那不代表套件坏了，
+    换一台有 `/tmp` 的 Linux 跑就行（Windows 的 Git Bash 也可以，只是起进程慢，全量要 20 分钟以上）
 
 ## 装机
 
@@ -62,7 +65,8 @@ bash scripts/wm-doctor.sh --dir /tmp/wm-smoke
 
 ## 来源与处理说明
 
-- 版本：WritingMaster 1.2.0（`mcp-server.mjs` 自报版本号），双套装原包直入，**未改任何逻辑内容**
+- 版本：**WritingMaster 2.0.0**（`mcp-server.mjs` 自报版本号）。双套装原包直入，**业务逻辑一行没改**；
+  只做了下面几层「装进本仓」的适配
 - 文件名修复：原始 zip 未置 UTF-8 标志，常规解压在 Windows 上会把 29 个中文模板名解成乱码
   （且乱码重名互相覆盖，只剩 12 个）。本目录是按 UTF-8 正确还原后的完整版，29 个模板齐全
 - **ESM 作用域隔离**：本仓根 `package.json` 声明了 `"type": "module"`，而套件引擎
@@ -76,6 +80,7 @@ bash scripts/wm-doctor.sh --dir /tmp/wm-smoke
   里把 `suites/` 列为豁免目录：套件是独立产品，它的知识库漂移由自己的
   `knowledge/lock.json` 指纹锁负责（`wm_verify` 每次都会校验），不归本仓单一原文原则管
 - **运行产物不收录**：原包自带的 `tests/.tap.txt`、`tests/.run.log` 是跑测机器的日志
-  （里面写着那台机器的绝对路径，进了公开仓就触发卫生门禁），本次只保留 `tests/REPORT.md`
-  ——「605/605 全绿」的统计与逐 case 明细都在里面，`bash tests/run.sh` 随时可重跑
+  （里面写着那台机器的绝对路径，进了公开仓就触发卫生门禁），只保留 `tests/REPORT.md`
+- **两套用例都真跑过**：skill 套装与 mcp 套装各 17 组 / 655 条断言全绿（在一台有 `/tmp` 的机器上
+  逐套装跑 `bash tests/run.sh`）。跑之前先看上面那条 `/tmp` 的说明，别把环境问题当成套件坏了
 - 本套件不参与本仓 `node --test`（用例是 bash 写的，走 `tests/run.sh`）
