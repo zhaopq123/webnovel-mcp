@@ -1,0 +1,415 @@
+{
+  "generated_at": "2026-10-19T13:41:31Z",
+  "slices": [
+    {
+      "id": "novel-negotiate-general",
+      "file": "slices/novel-negotiate-general.md",
+      "sha": "6a4c0b3658215c8e"
+    },
+    {
+      "id": "novel-negotiate-volume",
+      "file": "slices/novel-negotiate-volume.md",
+      "sha": "8311483a6467fdca"
+    },
+    {
+      "id": "novel-negotiate-process",
+      "file": "slices/novel-negotiate-process.md",
+      "sha": "526583a1aebfdae7"
+    },
+    {
+      "id": "webnovel-genre-panorama",
+      "file": "slices/webnovel-genre-panorama.md",
+      "sha": "9e6402408e4f834a"
+    },
+    {
+      "id": "webnovel-genre-emerging",
+      "file": "slices/webnovel-genre-emerging.md",
+      "sha": "0850dc457b1e3dc2"
+    },
+    {
+      "id": "webnovel-trope-quickref",
+      "file": "slices/webnovel-trope-quickref.md",
+      "sha": "f5f9d4cd78627f83"
+    },
+    {
+      "id": "novel-trope-engine-map",
+      "file": "slices/novel-trope-engine-map.md",
+      "sha": "838c64fe3a3a5f87"
+    },
+    {
+      "id": "novel-genre-male-power",
+      "file": "slices/novel-genre-male-power.md",
+      "sha": "d398a7eb8987cfa2"
+    },
+    {
+      "id": "novel-genre-male-reality",
+      "file": "slices/novel-genre-male-reality.md",
+      "sha": "66049b94e639dd09"
+    },
+    {
+      "id": "novel-genre-male-type",
+      "file": "slices/novel-genre-male-type.md",
+      "sha": "3d10641dd7fafc64"
+    },
+    {
+      "id": "novel-genre-emerging-loop",
+      "file": "slices/novel-genre-emerging-loop.md",
+      "sha": "e9ef82d52f8763a3"
+    },
+    {
+      "id": "novel-genre-emerging-shift",
+      "file": "slices/novel-genre-emerging-shift.md",
+      "sha": "55a538c88d32c5f0"
+    },
+    {
+      "id": "novel-genre-emerging-build",
+      "file": "slices/novel-genre-emerging-build.md",
+      "sha": "3b6caf178f1ac669"
+    },
+    {
+      "id": "novel-stage1-setup",
+      "file": "slices/novel-stage1-setup.md",
+      "sha": "7f18231b62531014"
+    },
+    {
+      "id": "novel-stage1-pov",
+      "file": "slices/novel-stage1-pov.md",
+      "sha": "331d2386251ebe11"
+    },
+    {
+      "id": "novel-stage1-romance-line",
+      "file": "slices/novel-stage1-romance-line.md",
+      "sha": "b742aa16192d69cd"
+    },
+    {
+      "id": "novel-stage2-world",
+      "file": "slices/novel-stage2-world.md",
+      "sha": "fa4bb1740ed477ce"
+    },
+    {
+      "id": "novel-stage3-characters",
+      "file": "slices/novel-stage3-characters.md",
+      "sha": "792566723dea5774"
+    },
+    {
+      "id": "novel-stage3-cast",
+      "file": "slices/novel-stage3-cast.md",
+      "sha": "14759bab6348e097"
+    },
+    {
+      "id": "novel-stage4-hooks",
+      "file": "slices/novel-stage4-hooks.md",
+      "sha": "5036fd787c467cf7"
+    },
+    {
+      "id": "novel-stage4-reversal",
+      "file": "slices/novel-stage4-reversal.md",
+      "sha": "5f62fe5a7b2fe337"
+    },
+    {
+      "id": "novel-stage4-roadmap",
+      "file": "slices/novel-stage4-roadmap.md",
+      "sha": "c233428c58991054"
+    },
+    {
+      "id": "novel-stage5-outline",
+      "file": "slices/novel-stage5-outline.md",
+      "sha": "7ce007e3fa354ce3"
+    },
+    {
+      "id": "novel-stage6-writing",
+      "file": "slices/novel-stage6-writing.md",
+      "sha": "e2904055238c9e2b"
+    },
+    {
+      "id": "novel-stage6-logic",
+      "file": "slices/novel-stage6-logic.md",
+      "sha": "5bc0971d05d65088"
+    },
+    {
+      "id": "novel-stage7-revision",
+      "file": "slices/novel-stage7-revision.md",
+      "sha": "965388a581c248bf"
+    },
+    {
+      "id": "novel-report-serial",
+      "file": "slices/novel-report-serial.md",
+      "sha": "8655015ec10cab4b"
+    },
+    {
+      "id": "novel-protocol",
+      "file": "slices/novel-protocol.md",
+      "sha": "450ae3303f62f034"
+    },
+    {
+      "id": "novel-record",
+      "file": "slices/novel-record.md",
+      "sha": "6ba0821d1c39955b"
+    },
+    {
+      "id": "romance-init-role",
+      "file": "slices/romance-init-role.md",
+      "sha": "514d0270a48ea948"
+    },
+    {
+      "id": "romance-core-psych",
+      "file": "slices/romance-core-psych.md",
+      "sha": "6d85d0dba6701fa3"
+    },
+    {
+      "id": "romance-workflow",
+      "file": "slices/romance-workflow.md",
+      "sha": "1b0723a4b79e2487"
+    },
+    {
+      "id": "romance-pov",
+      "file": "slices/romance-pov.md",
+      "sha": "8ad3951188e681ec"
+    },
+    {
+      "id": "romance-info-gap",
+      "file": "slices/romance-info-gap.md",
+      "sha": "8eca0e400a262997"
+    },
+    {
+      "id": "romance-language",
+      "file": "slices/romance-language.md",
+      "sha": "b5453a3a3148e94d"
+    },
+    {
+      "id": "romance-dialogue",
+      "file": "slices/romance-dialogue.md",
+      "sha": "15ffe7397454d7f1"
+    },
+    {
+      "id": "romance-golden-three",
+      "file": "slices/romance-golden-three.md",
+      "sha": "8e973e5a55cb77d7"
+    },
+    {
+      "id": "romance-hooks-pace",
+      "file": "slices/romance-hooks-pace.md",
+      "sha": "8a9ad17afa314622"
+    },
+    {
+      "id": "romance-antitrope",
+      "file": "slices/romance-antitrope.md",
+      "sha": "d57d69ab34140ef1"
+    },
+    {
+      "id": "romance-ledger-review",
+      "file": "slices/romance-ledger-review.md",
+      "sha": "6c6c14356759b247"
+    },
+    {
+      "id": "romance-recovery",
+      "file": "slices/romance-recovery.md",
+      "sha": "caebd7355af4f324"
+    },
+    {
+      "id": "romance-output",
+      "file": "slices/romance-output.md",
+      "sha": "318c7fbbbb5915f7"
+    },
+    {
+      "id": "screenplay-negotiate-general",
+      "file": "slices/screenplay-negotiate-general.md",
+      "sha": "5ed611d0bf72f25e"
+    },
+    {
+      "id": "screenplay-stage1-setup",
+      "file": "slices/screenplay-stage1-setup.md",
+      "sha": "519f33338c3c35cb"
+    },
+    {
+      "id": "screenplay-stage2-story",
+      "file": "slices/screenplay-stage2-story.md",
+      "sha": "eb2e50df1764685f"
+    },
+    {
+      "id": "screenplay-stage3-episodes",
+      "file": "slices/screenplay-stage3-episodes.md",
+      "sha": "ce0c8ac228470485"
+    },
+    {
+      "id": "screenplay-stage4-scenes",
+      "file": "slices/screenplay-stage4-scenes.md",
+      "sha": "9b4e686524bf3319"
+    },
+    {
+      "id": "screenplay-stage5-format",
+      "file": "slices/screenplay-stage5-format.md",
+      "sha": "dbf41cf6a3696bd8"
+    },
+    {
+      "id": "screenplay-stage5-dialogue",
+      "file": "slices/screenplay-stage5-dialogue.md",
+      "sha": "fa54849fa151a931"
+    },
+    {
+      "id": "screenplay-stage6-review",
+      "file": "slices/screenplay-stage6-review.md",
+      "sha": "f7b57762863e57ce"
+    },
+    {
+      "id": "screenplay-record-ledger",
+      "file": "slices/screenplay-record-ledger.md",
+      "sha": "45d5aa57879d28cd"
+    },
+    {
+      "id": "jubensha-negotiate-general",
+      "file": "slices/jubensha-negotiate-general.md",
+      "sha": "c2fcf33ab65e86fe"
+    },
+    {
+      "id": "jubensha-stage1-params",
+      "file": "slices/jubensha-stage1-params.md",
+      "sha": "5107b4391a67b2f3"
+    },
+    {
+      "id": "jubensha-stage2-truth",
+      "file": "slices/jubensha-stage2-truth.md",
+      "sha": "184d109d884704f6"
+    },
+    {
+      "id": "jubensha-stage3-characters",
+      "file": "slices/jubensha-stage3-characters.md",
+      "sha": "746f2c2e8ecd19e8"
+    },
+    {
+      "id": "jubensha-stage3-modules",
+      "file": "slices/jubensha-stage3-modules.md",
+      "sha": "5116b3103e91c308"
+    },
+    {
+      "id": "jubensha-stage4-deliverables",
+      "file": "slices/jubensha-stage4-deliverables.md",
+      "sha": "256b2d35e6a176a0"
+    },
+    {
+      "id": "jubensha-write-logic",
+      "file": "slices/jubensha-write-logic.md",
+      "sha": "c9cea194dcb7194b"
+    },
+    {
+      "id": "jubensha-write-suspense",
+      "file": "slices/jubensha-write-suspense.md",
+      "sha": "fd52a09a5c18698f"
+    },
+    {
+      "id": "jubensha-write-text",
+      "file": "slices/jubensha-write-text.md",
+      "sha": "5d345a6002a6e538"
+    },
+    {
+      "id": "jubensha-protocol-process",
+      "file": "slices/jubensha-protocol-process.md",
+      "sha": "eab1baf853687d2b"
+    },
+    {
+      "id": "jubensha-record-casefile",
+      "file": "slices/jubensha-record-casefile.md",
+      "sha": "2dbe1566791ad99f"
+    },
+    {
+      "id": "toolbook-negotiate-general",
+      "file": "slices/toolbook-negotiate-general.md",
+      "sha": "ac5e49ef359ba568"
+    },
+    {
+      "id": "toolbook-stage1-positioning",
+      "file": "slices/toolbook-stage1-positioning.md",
+      "sha": "302ba70f2d7b1fac"
+    },
+    {
+      "id": "toolbook-stage2-outline",
+      "file": "slices/toolbook-stage2-outline.md",
+      "sha": "c6bab417d225a59a"
+    },
+    {
+      "id": "toolbook-stage3-chapter",
+      "file": "slices/toolbook-stage3-chapter.md",
+      "sha": "18b4b581efe2dcc7"
+    },
+    {
+      "id": "toolbook-stage3-terms",
+      "file": "slices/toolbook-stage3-terms.md",
+      "sha": "1180236d834dcf21"
+    },
+    {
+      "id": "toolbook-stage4-factcheck",
+      "file": "slices/toolbook-stage4-factcheck.md",
+      "sha": "a1d468b1eee16f51"
+    },
+    {
+      "id": "toolbook-record-ledger",
+      "file": "slices/toolbook-record-ledger.md",
+      "sha": "5f5e67c77f87384f"
+    },
+    {
+      "id": "wm-reading-power",
+      "file": "slices/wm-reading-power.md",
+      "sha": "90ff673fd9abc17c"
+    },
+    {
+      "id": "wm-error-catalog",
+      "file": "slices/wm-error-catalog.md",
+      "sha": "3dc4aa78262b3eca"
+    },
+    {
+      "id": "wm-glossary",
+      "file": "slices/wm-glossary.md",
+      "sha": "520254e0baa06c23"
+    },
+    {
+      "id": "wm-strand-weave",
+      "file": "slices/wm-strand-weave.md",
+      "sha": "e23639a6979257b1"
+    },
+    {
+      "id": "wm-deconstruct",
+      "file": "slices/wm-deconstruct.md",
+      "sha": "cd1030a2aa270a1c"
+    },
+    {
+      "id": "wm-style-baseline",
+      "file": "slices/wm-style-baseline.md",
+      "sha": "a61b67207ef89e60"
+    },
+    {
+      "id": "wm-repetition-guard",
+      "file": "slices/wm-repetition-guard.md",
+      "sha": "3e3961636984c684"
+    },
+    {
+      "id": "wm-info-isolation",
+      "file": "slices/wm-info-isolation.md",
+      "sha": "53be696b77dc81f7"
+    },
+    {
+      "id": "wm-injury-tracking",
+      "file": "slices/wm-injury-tracking.md",
+      "sha": "7dd43ef05e7ce3b1"
+    },
+    {
+      "id": "wm-suspense-layers",
+      "file": "slices/wm-suspense-layers.md",
+      "sha": "1926af448dbbb1b9"
+    },
+    {
+      "id": "wm-reader-promise",
+      "file": "slices/wm-reader-promise.md",
+      "sha": "e10c4ecc0d70f45e"
+    },
+    {
+      "id": "novel-golden-finger",
+      "file": "slices/novel-golden-finger.md",
+      "sha": "7cdb1d30208f65d9"
+    },
+    {
+      "id": "novel-power-system",
+      "file": "slices/novel-power-system.md",
+      "sha": "c2623e2fce887286"
+    }
+  ]
+}

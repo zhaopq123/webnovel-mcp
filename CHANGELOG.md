@@ -1,5 +1,50 @@
 # 变更记录
 
+## [1.5.0] - 2026-10-20
+
+这版只做一件事：**把 WritingMaster 双套装挂进仓库**。主体 12 个工具、19 节提示词、
+现有 `skills/` `expert/` `prompt/` 一行未动；`suites/` 与主体互不引用、互不依赖，
+删掉它本仓照常运行。
+
+### 新增
+
+- **`suites/writing-master/`**：原样收录 WritingMaster 1.2.0 双套装——
+  `writing-master-skill-suite/`（满血版：13 条 `wm-*` 命令、82 张知识切片、29 个交付模板、
+  6 个技能、605 条自测）与 `writing-master-mcp-suite/`（同引擎 + `scripts/mcp-server.mjs`
+  翻译壳，13 个 `wm_` 工具，给只认 MCP 的客户端）。
+- **`suites/writing-master/README.md`**：两套装怎么选、装机三步、自检命令，以及
+  **账本边界**——主体状态在 `.webnovel/`、套件在 `.wm/`，同一本书只挂一套，避免双账本打架。
+- 根 README 增「附带套件：WritingMaster 双套装」段；`package.json` 的 `files` 加入 `suites`，
+  发布物带得上套件。
+
+### 修复
+
+- **分发包中文文件名乱码**：原始 zip 未置 UTF-8 标志（352 个条目全是 0x0），Windows 常规解压
+  会把 29 个中文模板名解成 GBK 乱码，且不同原名塌缩成同一乱码名互相覆盖，实际只剩 12 个模板。
+  本次按 `cp437 → UTF-8` 还原文件名后收录：29 个模板齐全，262 个同名文件 sha256 全等；
+  原解压里 34 个模板已丢、另有 24 个以乱码名顶着。
+- **ESM 作用域冲突**：仓根 `package.json` 是 `"type": "module"`，套件引擎 `scripts/wm.js`
+  是 CommonJS，原样放入会 `ReferenceError: require is not defined` 直接熄火（实测）。
+  两个套装根各加一份 `package.json`（`{"type": "commonjs"}`）做作用域切分，引擎代码未改。
+
+### 调整
+
+- **判重门禁豁免 `suites/`**：套件 `knowledge/source/novel-full.md` + 26 张 `novel-*` 切片
+  就是本仓 `prompt/CREATIVE-PROMPT.md` 的整份/分段拷贝，`check-rule-duplication` 会判 40 处
+  「原文照抄」。套件是独立产品，漂移由它自己的 `knowledge/lock.json` 指纹锁负责，
+  故在 `SKIP_DIRS` 里加 `suites`（带注释说明口径）。豁免面只限这一个目录，
+  `skills/` `expert/` `lib/` 照旧受管。
+- **运行产物不入仓**：`.tap.txt` / `.run.log` 是跑测机器日志（含绝对路径，进仓即触发卫生门禁），
+  不收录；`tests/REPORT.md` 保留作 605/605 的凭证。`.gitignore` 加
+  `suites/**/tests/.tap.txt`，防止下次跑测又把产物带进来。
+
+### 说明
+
+- 仓库版本统一到 1.5.0（`package.json`、`CHANGELOG`、两个专家包 `plugin.json` 同步）；
+  MCP `serverInfo.version` 仍从 `package.json` 读取，不另设真相源。
+- 回归：`node --test` 380 条全绿（改动前后一致）；套件侧 `wm-init` + `wm-doctor`（D01–D08
+  通过、D04 空名词表警告属预期）、MCP stdio 握手 + `wm_init` 实调闭环均已实测。
+
 ## [1.4.0] - 2026-10-17
 
 这版的主题：**把「未闭环」清零**。老书可以带着提交链之外的人工数据安全升级；

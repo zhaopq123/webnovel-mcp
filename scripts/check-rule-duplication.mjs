@@ -25,7 +25,11 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_REL = 'prompt/CREATIVE-PROMPT.md';
 const MIN_LEN = 20;
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'books', 'logs', 'test-artifacts', 'prompt', 'scripts']);
+// suites/ 是附带的第三方套件（WritingMaster），自带 knowledge/source/ 整份原文 + 切片库，
+// 属于「另一个产品的内容」，不是本仓提示词的派生物——它的漂移由套件自己的 knowledge/lock.json
+// 指纹锁（wm-verify V1）负责，不归本仓的单一原文原则管。豁免整个 suites/ 而不是逐文件放行，
+// 是为了让本门禁继续只盯本仓真源（prompt/ 之外只有 skills/ expert/ lib/ 这些派生物）。
+const SKIP_DIRS = new Set(['.git', 'node_modules', 'books', 'logs', 'test-artifacts', 'prompt', 'scripts', 'suites']);
 const SKIP_FILES = new Set(['README.md', 'CHANGELOG.md', 'LICENSE', '.gitignore', '.gitattributes']);
 const TEXT_EXT = new Set(['.md', '.mjs', '.js', '.json', '.txt', '.yaml', '.yml']);
 

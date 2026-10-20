@@ -53,8 +53,11 @@ say "1/6 打包并传输"
 TARBALL="../.webnovel-mcp-deploy.tgz"
 rm -f "$TARBALL"
 # config.env 必须排除：它是生产配置，包里带一份就会在解包时把线上配置覆盖掉。
+# suites/ 也排除：那是给桌面 Agent 的附带套件（WritingMaster 双套装，2MB+ 文档与模板），
+# 服务端一行都不用，传上去只是白占手机存储、还把每次部署拖慢。
 tar --force-local -czf "$TARBALL" --exclude=./test --exclude=./books --exclude=./node_modules \
-  --exclude=./.git --exclude=./logs --exclude=./config.env --exclude=./config.env.* .
+  --exclude=./.git --exclude=./logs --exclude=./config.env --exclude=./config.env.* \
+  --exclude=./suites .
 echo "包大小：$(wc -c < "$TARBALL") 字节"
 # 直接覆盖式解包：保留 books/ 与 config.env（书库数据绝不能被部署动作清掉）
 "${SSH[@]}" 'mkdir -p ~/webnovel-mcp && cat > ~/webnovel-mcp.tgz' < "$TARBALL"

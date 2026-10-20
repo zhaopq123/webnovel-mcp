@@ -1,0 +1,6 @@
+{
+  "name": "writing-master-skill-suite",
+  "private": true,
+  "type": "commonjs",
+  "description": "WritingMaster 写作大师 · Skill 套装（随 webnovel-mcp 附带分发）。type 必须是 commonjs：scripts/wm.js 用 require 写就，而仓根 package.json 是 type=module，不加本文件会被当 ESM 解释而启动失败。"
+}

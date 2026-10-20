@@ -1,0 +1,644 @@
+[
+  {
+    "id": "novel-negotiate-general",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-negotiate-general.md",
+    "words": 734,
+    "trigger": "开局与全程常驻：防幻觉三铁律、合规红线、适用范围"
+  },
+  {
+    "id": "novel-negotiate-volume",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-negotiate-volume.md",
+    "words": 1399,
+    "trigger": "开局确定目标体量后换算部/卷/章/层级/洋葱/悬念层数；中途改目标时重算"
+  },
+  {
+    "id": "novel-negotiate-process",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-negotiate-process.md",
+    "words": 932,
+    "trigger": "七阶段总控、五级闭环、部循环机制总览（写作全程参考）"
+  },
+  {
+    "id": "webnovel-genre-panorama",
+    "stage": "negotiate",
+    "file": "slices/webnovel-genre-panorama.md",
+    "words": 947,
+    "trigger": "阶段0题材×套路选型起点：题材/套路概念区分+男频10+女频6+跨频4清单（全赛道共用切片）"
+  },
+  {
+    "id": "webnovel-genre-emerging",
+    "stage": "negotiate",
+    "file": "slices/webnovel-genre-emerging.md",
+    "words": 434,
+    "trigger": "阶段0选型：新兴/高热度细分赛道9条清单原文（规则怪谈/无限流/快穿/灵气复苏/末日废土/赛博朋克/克苏鲁/种田基建/知乎短篇）（全赛道共用切片）"
+  },
+  {
+    "id": "webnovel-trope-quickref",
+    "stage": "negotiate",
+    "file": "slices/webnovel-trope-quickref.md",
+    "words": 371,
+    "trigger": "阶段0选型：10大套路速查原文——系统流/重生/穿越/退婚/赘婿/无敌/无限流/快穿/废柴/战神（全赛道共用切片）"
+  },
+  {
+    "id": "novel-trope-engine-map",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-trope-engine-map.md",
+    "words": 2139,
+    "trigger": "阶段0选型+阶段1兑现：10大套路×19节引擎挂接映射（系统流↔金手指规则、重生/赘婿↔信息差、退婚/废柴/战神↔俗套声明制、无限流/快穿↔部循环、悬疑↔悬念账户）"
+  },
+  {
+    "id": "novel-genre-male-power",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-male-power.md",
+    "words": 1871,
+    "trigger": "阶段0选型玄幻/仙侠/奇幻/武侠后加读：超凡力量类题材创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-genre-male-reality",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-male-reality.md",
+    "words": 1487,
+    "trigger": "阶段0选型都市/历史/现实后加读：现实基底类题材创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-genre-male-type",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-male-type.md",
+    "words": 1526,
+    "trigger": "阶段0选型科幻/悬疑/游戏后加读：类型强设定类题材创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-genre-emerging-loop",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-emerging-loop.md",
+    "words": 1512,
+    "trigger": "阶段0选型规则怪谈/无限流诸天/快穿后加读：副本规则类赛道创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-genre-emerging-shift",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-emerging-shift.md",
+    "words": 1962,
+    "trigger": "阶段0选型灵气复苏/末日废土/赛博朋克/克苏鲁后加读：世界变异类赛道创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-genre-emerging-build",
+    "track": "novel",
+    "stage": "negotiate",
+    "file": "slices/novel-genre-emerging-build.md",
+    "words": 1268,
+    "trigger": "阶段0选型种田基建/知乎短篇后加读：经营与短形态赛道创作要点（爽点/层级示例/俗套变体/引擎挂接）"
+  },
+  {
+    "id": "novel-stage1-setup",
+    "track": "novel",
+    "stage": "stage1",
+    "file": "slices/novel-stage1-setup.md",
+    "words": 1326,
+    "trigger": "阶段1执行：核心设定表、动机三段、俗套声明制、开场四问"
+  },
+  {
+    "id": "novel-stage1-pov",
+    "track": "novel",
+    "stage": "stage1",
+    "file": "slices/novel-stage1-pov.md",
+    "words": 309,
+    "trigger": "阶段1视角声明：单视角/多视角群像规则（15.2视角铁律的源头）"
+  },
+  {
+    "id": "novel-stage1-romance-line",
+    "track": "novel",
+    "stage": "stage1",
+    "file": "slices/novel-stage1-romance-line.md",
+    "words": 528,
+    "trigger": "阶段1声明含重要感情线后启用：六拍节拍、心动写法、感情线状态"
+  },
+  {
+    "id": "novel-stage2-world",
+    "track": "novel",
+    "stage": "stage2",
+    "file": "slices/novel-stage2-world.md",
+    "words": 723,
+    "trigger": "阶段2执行：层级阶梯、跨级规则、天花板、铁律三条"
+  },
+  {
+    "id": "novel-stage3-characters",
+    "track": "novel",
+    "stage": "stage3",
+    "file": "slices/novel-stage3-characters.md",
+    "words": 3256,
+    "trigger": "人物建档（阶段3与全程）：三维建模、语言指纹、口语档位、人味档案、反派洋葱"
+  },
+  {
+    "id": "novel-stage3-cast",
+    "track": "novel",
+    "stage": "stage3",
+    "file": "slices/novel-stage3-cast.md",
+    "words": 695,
+    "trigger": "阶段3执行：人物档案、关系表、反派计划线、配角小弧光"
+  },
+  {
+    "id": "novel-stage4-hooks",
+    "track": "novel",
+    "stage": "stage4",
+    "file": "slices/novel-stage4-hooks.md",
+    "words": 1406,
+    "trigger": "钩子系统（规划+章纲+正文全程）：悬念账户、钩子五型、支票管理、情绪曲线、信息差三模式"
+  },
+  {
+    "id": "novel-stage4-reversal",
+    "track": "novel",
+    "stage": "stage4",
+    "file": "slices/novel-stage4-reversal.md",
+    "words": 1047,
+    "trigger": "设计反转、揭晓节奏（两步揭晓）、红鲱鱼、反转纪律时"
+  },
+  {
+    "id": "novel-stage4-roadmap",
+    "track": "novel",
+    "stage": "stage4",
+    "file": "slices/novel-stage4-roadmap.md",
+    "words": 1127,
+    "trigger": "阶段4执行：路线图、三幕大纲、伏笔矩阵、悬念账户规划、期待线"
+  },
+  {
+    "id": "novel-stage5-outline",
+    "track": "novel",
+    "stage": "stage5",
+    "file": "slices/novel-stage5-outline.md",
+    "words": 566,
+    "trigger": "阶段5执行：章纲8行+附加标注（每批10章）"
+  },
+  {
+    "id": "novel-stage6-writing",
+    "track": "novel",
+    "stage": "stage6",
+    "file": "slices/novel-stage6-writing.md",
+    "words": 4871,
+    "trigger": "阶段6写正文：句式节奏、对话活人化、可读性、去AI味、两遍交付制"
+  },
+  {
+    "id": "novel-stage6-logic",
+    "track": "novel",
+    "stage": "stage6",
+    "file": "slices/novel-stage6-logic.md",
+    "words": 1568,
+    "trigger": "每章交付前：五条追踪线、渐变桥、归属核对、逻辑自检八问"
+  },
+  {
+    "id": "novel-stage7-revision",
+    "track": "novel",
+    "stage": "stage7",
+    "file": "slices/novel-stage7-revision.md",
+    "words": 365,
+    "trigger": "阶段7完本修订：修订优先级、全局一致性与大纲级自检"
+  },
+  {
+    "id": "novel-report-serial",
+    "track": "novel",
+    "stage": "report",
+    "file": "slices/novel-report-serial.md",
+    "words": 917,
+    "trigger": "每写完10章输出连载状态报告（17项清单）"
+  },
+  {
+    "id": "novel-protocol",
+    "track": "novel",
+    "stage": "protocol",
+    "file": "slices/novel-protocol.md",
+    "words": 671,
+    "trigger": "全程常驻：用户指令语义（通过/继续/卡文了/部循环）与每章交付声明"
+  },
+  {
+    "id": "novel-record",
+    "track": "novel",
+    "stage": "record",
+    "file": "slices/novel-record.md",
+    "words": 878,
+    "trigger": "设定记录两区（活跃区/历史区）字段与维护规则"
+  },
+  {
+    "id": "romance-init-role",
+    "track": "romance",
+    "stage": "init",
+    "file": "slices/romance-init-role.md",
+    "words": 916,
+    "trigger": "赛道总则：三合一角色、默认设定包、全自动模式总开关（auto/collab 差异起点）"
+  },
+  {
+    "id": "romance-core-psych",
+    "track": "romance",
+    "stage": "core",
+    "file": "slices/romance-core-psych.md",
+    "words": 357,
+    "trigger": "全程底座：M1-M4读者心理机制、硬数据、每章动笔前对照"
+  },
+  {
+    "id": "romance-workflow",
+    "track": "romance",
+    "stage": "workflow",
+    "file": "slices/romance-workflow.md",
+    "words": 857,
+    "trigger": "流程总览：阶段0六份全局文档、每章循环、卷末结算、完结回收（含全自动差异点）"
+  },
+  {
+    "id": "romance-pov",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-pov.md",
+    "words": 653,
+    "trigger": "写作全程：第三人称限知+男主禁直写心理、泄底菜单（最高优先级）"
+  },
+  {
+    "id": "romance-info-gap",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-info-gap.md",
+    "words": 491,
+    "trigger": "写作全程：信息差三层排序、物证三定律、糖点守则"
+  },
+  {
+    "id": "romance-language",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-language.md",
+    "words": 801,
+    "trigger": "写正文：去AI味、纯中文纪律、展示不讲述、短句基调"
+  },
+  {
+    "id": "romance-dialogue",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-dialogue.md",
+    "words": 502,
+    "trigger": "写正文：对白三铁律、对话技术、双方节奏区别、禁忌清单"
+  },
+  {
+    "id": "romance-golden-three",
+    "track": "romance",
+    "stage": "golden3",
+    "file": "slices/romance-golden-three.md",
+    "words": 843,
+    "trigger": "第1-3章专用：黄金三章清单与执行"
+  },
+  {
+    "id": "romance-hooks-pace",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-hooks-pace.md",
+    "words": 850,
+    "trigger": "写作全程：钩子五型、兑现纪律、期待线、高潮节拍表、亲密尺度"
+  },
+  {
+    "id": "romance-antitrope",
+    "track": "romance",
+    "stage": "write",
+    "file": "slices/romance-antitrope.md",
+    "words": 685,
+    "trigger": "写作全程：防俗套清单、糖点独家性、余味细节、尾声三原则"
+  },
+  {
+    "id": "romance-ledger-review",
+    "track": "romance",
+    "stage": "review",
+    "file": "slices/romance-ledger-review.md",
+    "words": 1270,
+    "trigger": "每章交付前后：六本台账、创作后台、六重自检（A-F）执法纪律"
+  },
+  {
+    "id": "romance-recovery",
+    "track": "romance",
+    "stage": "recover",
+    "file": "slices/romance-recovery.md",
+    "words": 351,
+    "trigger": "异常处理：中途改设定、既往矛盾、上下文极限、记忆恢复协议"
+  },
+  {
+    "id": "romance-output",
+    "track": "romance",
+    "stage": "protocol",
+    "file": "slices/romance-output.md",
+    "words": 564,
+    "trigger": "每章输出结构：规划卡→正文→后台→自检→下一步；TXT交付规范（含全自动差异点）"
+  },
+  {
+    "id": "screenplay-negotiate-general",
+    "track": "screenplay",
+    "stage": "negotiate",
+    "file": "slices/screenplay-negotiate-general.md",
+    "words": 1074,
+    "trigger": "开局/全程：剧本定位、防幻觉三铁律、合规红线、开场确认五问、流程总览"
+  },
+  {
+    "id": "screenplay-stage1-setup",
+    "track": "screenplay",
+    "stage": "stage1",
+    "file": "slices/screenplay-stage1-setup.md",
+    "words": 1210,
+    "trigger": "阶段1：logline、主题论断、人物三维+动机三段+人味、关系功能位、洋葱层反派、俗套声明、体量换算"
+  },
+  {
+    "id": "screenplay-stage2-story",
+    "track": "screenplay",
+    "stage": "stage2",
+    "file": "slices/screenplay-stage2-story.md",
+    "words": 1167,
+    "trigger": "阶段2：三幕/季结构、中点反转、低谷三连跌、悬念账户四层、支票、两步揭晓、A/B线咬合"
+  },
+  {
+    "id": "screenplay-stage3-episodes",
+    "track": "screenplay",
+    "stage": "stage3",
+    "file": "slices/screenplay-stage3-episodes.md",
+    "words": 1056,
+    "trigger": "阶段3：集纲八行、集内节拍、删集测试、黄金前三集、集间承接纪律"
+  },
+  {
+    "id": "screenplay-stage4-scenes",
+    "track": "screenplay",
+    "stage": "stage4",
+    "file": "slices/screenplay-stage4-scenes.md",
+    "words": 938,
+    "trigger": "阶段4：场次表八字段、删场测试、序列四要素、人物出场三笔、场景经济性"
+  },
+  {
+    "id": "screenplay-stage5-format",
+    "track": "screenplay",
+    "stage": "stage5",
+    "file": "slices/screenplay-stage5-format.md",
+    "words": 1039,
+    "trigger": "阶段5写正文：slug line、动作行六铁律、台词块与括注、转场、洁净度、页面预算"
+  },
+  {
+    "id": "screenplay-stage5-dialogue",
+    "track": "screenplay",
+    "stage": "stage5",
+    "file": "slices/screenplay-stage5-dialogue.md",
+    "words": 1049,
+    "trigger": "阶段5写正文：对白三铁律、语言指纹六项、口语档位、书面腔黑名单、信息纪律、笨拙化"
+  },
+  {
+    "id": "screenplay-stage6-review",
+    "track": "screenplay",
+    "stage": "stage6",
+    "file": "slices/screenplay-stage6-review.md",
+    "words": 990,
+    "trigger": "每集交付前：两遍交付制、每集八问、修订优先级、季末体检、卡文诊断路径"
+  },
+  {
+    "id": "screenplay-record-ledger",
+    "track": "screenplay",
+    "stage": "record",
+    "file": "slices/screenplay-record-ledger.md",
+    "words": 824,
+    "trigger": "全程：剧本台账语义映射与维护节奏、一致性三不"
+  },
+  {
+    "id": "jubensha-negotiate-general",
+    "track": "jubensha",
+    "stage": "negotiate",
+    "file": "slices/jubensha-negotiate-general.md",
+    "words": 1168,
+    "trigger": "开局：任务计划协议、防幻觉三铁律、合规红线、全流程时序链（开场五问起点）"
+  },
+  {
+    "id": "jubensha-stage1-params",
+    "track": "jubensha",
+    "stage": "stage1",
+    "file": "slices/jubensha-stage1-params.md",
+    "words": 963,
+    "trigger": "阶段1：开场五问、结构换算公式（时长/人数/幕数/线索量）、调性基准"
+  },
+  {
+    "id": "jubensha-stage2-truth",
+    "track": "jubensha",
+    "stage": "stage2",
+    "file": "slices/jubensha-stage2-truth.md",
+    "words": 1021,
+    "trigger": "阶段2：真相文件倒写、诡计可行性检验、红鲱鱼分配、双案配置"
+  },
+  {
+    "id": "jubensha-stage3-characters",
+    "track": "jubensha",
+    "stage": "stage3",
+    "file": "slices/jubensha-stage3-characters.md",
+    "words": 1302,
+    "trigger": "阶段3：三维+秘密三层、凶手伪装线、关系网、死者行为线、口语档位"
+  },
+  {
+    "id": "jubensha-stage3-modules",
+    "track": "jubensha",
+    "stage": "stage3",
+    "file": "slices/jubensha-stage3-modules.md",
+    "words": 707,
+    "trigger": "阶段3（条件启用）：情感/机制/恐怖模块、阵营与技能、结局分支、惊吓点"
+  },
+  {
+    "id": "jubensha-stage4-deliverables",
+    "track": "jubensha",
+    "stage": "stage4",
+    "file": "slices/jubensha-stage4-deliverables.md",
+    "words": 1316,
+    "trigger": "阶段4：四件套（玩家剧本/线索卡/DM手册/复盘手册）与结算表"
+  },
+  {
+    "id": "jubensha-write-logic",
+    "track": "jubensha",
+    "stage": "write",
+    "file": "slices/jubensha-write-logic.md",
+    "words": 1009,
+    "trigger": "每模块交付：五条追踪线、凶手三查、逻辑自检八问"
+  },
+  {
+    "id": "jubensha-write-suspense",
+    "track": "jubensha",
+    "stage": "write",
+    "file": "slices/jubensha-write-suspense.md",
+    "words": 517,
+    "trigger": "设计+自检：疑点账户、三步揭晓、节奏三测试"
+  },
+  {
+    "id": "jubensha-write-text",
+    "track": "jubensha",
+    "stage": "write",
+    "file": "slices/jubensha-write-text.md",
+    "words": 715,
+    "trigger": "玩家剧本正文质量线：黑名单、两遍交付制、文字规范"
+  },
+  {
+    "id": "jubensha-protocol-process",
+    "track": "jubensha",
+    "stage": "protocol",
+    "file": "slices/jubensha-protocol-process.md",
+    "words": 1029,
+    "trigger": "全程总控：七阶段时序、阶段确认粒度、卡壳诊断、交付声明"
+  },
+  {
+    "id": "jubensha-record-casefile",
+    "track": "jubensha",
+    "stage": "record",
+    "file": "slices/jubensha-record-casefile.md",
+    "words": 771,
+    "trigger": "案件档案格式（每阶段增量维护的全部分区）"
+  },
+  {
+    "id": "toolbook-negotiate-general",
+    "track": "toolbook",
+    "stage": "negotiate",
+    "file": "slices/toolbook-negotiate-general.md",
+    "words": 1038,
+    "trigger": "开局/全程：工具书定位、防幻觉三铁律（事实必溯）、立场红线、开场确认五问、流程总览"
+  },
+  {
+    "id": "toolbook-stage1-positioning",
+    "track": "toolbook",
+    "stage": "stage1",
+    "file": "slices/toolbook-stage1-positioning.md",
+    "words": 711,
+    "trigger": "阶段1：读者画像三问、承诺一句话、差异化三空缺、定位声明、删块测试"
+  },
+  {
+    "id": "toolbook-stage2-outline",
+    "track": "toolbook",
+    "stage": "stage2",
+    "file": "slices/toolbook-stage2-outline.md",
+    "words": 826,
+    "trigger": "阶段2：大纲铁律、MECE与依赖排序、进度螺旋、章数换算、大纲自检"
+  },
+  {
+    "id": "toolbook-stage3-chapter",
+    "track": "toolbook",
+    "stage": "stage3",
+    "file": "slices/toolbook-stage3-chapter.md",
+    "words": 957,
+    "trigger": "阶段3写章：六段制章节模板、案例纪律、图表规范、背景纪律、章自检"
+  },
+  {
+    "id": "toolbook-stage3-terms",
+    "track": "toolbook",
+    "stage": "stage3",
+    "file": "slices/toolbook-stage3-terms.md",
+    "words": 808,
+    "trigger": "阶段3写章：术语表纪律、口径统一、语言规范、缩略语规则"
+  },
+  {
+    "id": "toolbook-stage4-factcheck",
+    "track": "toolbook",
+    "stage": "stage4",
+    "file": "slices/toolbook-stage4-factcheck.md",
+    "words": 981,
+    "trigger": "每章交付前+完稿：两遍交付制、六项核查清单、全书级自检、修订优先级、卡文诊断"
+  },
+  {
+    "id": "toolbook-record-ledger",
+    "track": "toolbook",
+    "stage": "record",
+    "file": "slices/toolbook-record-ledger.md",
+    "words": 867,
+    "trigger": "全程：非虚构台账语义映射（术语表/数据点/交叉引用）与维护节奏"
+  },
+  {
+    "id": "wm-reading-power",
+    "stage": "write",
+    "file": "slices/wm-reading-power.md",
+    "words": 2169,
+    "trigger": "章纲选钩/章末标注/微兑现/爽点模式与硬约束四条（追读力全谱，配钩子强度与题材偏好）"
+  },
+  {
+    "id": "wm-error-catalog",
+    "stage": "review",
+    "file": "slices/wm-error-catalog.md",
+    "words": 1765,
+    "trigger": "任何命令输出 FAIL/WARN/红黄牌/打回/拒绝时查表：D01-D08+审稿红牌+提交拒绝的含义与下一步"
+  },
+  {
+    "id": "wm-glossary",
+    "stage": "negotiate",
+    "file": "slices/wm-glossary.md",
+    "words": 2175,
+    "trigger": "开局通读建立词汇；全程遇到不理解的引擎术语回查（结构/钩子/台账/人物/流程/赛道专有六类）"
+  },
+  {
+    "id": "wm-strand-weave",
+    "stage": "write",
+    "file": "slices/wm-strand-weave.md",
+    "words": 1148,
+    "trigger": "路线图/批章纲排三线与断档警戒；卷末三线盘点（主线/感情或B线/世界观，五赛道线型换算）"
+  },
+  {
+    "id": "wm-deconstruct",
+    "stage": "negotiate",
+    "file": "slices/wm-deconstruct.md",
+    "words": 1638,
+    "trigger": "选题期拆对标作品：六层抽取+抽象转化红线+质量门控；配套 templates/wm-拆书报告.md"
+  },
+  {
+    "id": "wm-style-baseline",
+    "stage": "review",
+    "file": "slices/wm-style-baseline.md",
+    "words": 1318,
+    "trigger": "开局建文风基准（指纹+五指标）；每30章对比漂移；AI味四判据；登记式换风"
+  },
+  {
+    "id": "wm-repetition-guard",
+    "stage": "review",
+    "file": "slices/wm-repetition-guard.md",
+    "words": 1297,
+    "trigger": "写前变奏规则+审时复读自查：情节/语言/结构三型复读高危清单与修复手法库"
+  },
+  {
+    "id": "wm-info-isolation",
+    "stage": "write",
+    "file": "slices/wm-info-isolation.md",
+    "words": 1304,
+    "trigger": "写章前核对人物信息边界（knows/notKnows/mistaken）；全知泄漏禁令与归属核对；线索公平"
+  },
+  {
+    "id": "wm-injury-tracking",
+    "stage": "write",
+    "file": "slices/wm-injury-tracking.md",
+    "words": 1333,
+    "trigger": "commit 更新伤病/持有物；写章核对带伤动作与恢复显性化；跨部长线伤与通胀控制"
+  },
+  {
+    "id": "wm-suspense-layers",
+    "stage": "write",
+    "file": "slices/wm-suspense-layers.md",
+    "words": 1188,
+    "trigger": "埋悬念时标层；账户余额分层核算；跳层校验与回收窗口（五层命名对齐2.3换算）"
+  },
+  {
+    "id": "wm-reader-promise",
+    "stage": "negotiate",
+    "file": "slices/wm-reader-promise.md",
+    "words": 1454,
+    "trigger": "开局谈定承诺三要素并立契约表；前三章立约；卷末兑现盘点；800万字承诺升维链"
+  },
+  {
+    "id": "novel-golden-finger",
+    "track": "novel",
+    "stage": "stage1",
+    "file": "slices/novel-golden-finger.md",
+    "words": 1651,
+    "trigger": "阶段1设计金手指：三原则+八字段+明暗牌+升级三段式；每部通胀控制与反制升级"
+  },
+  {
+    "id": "novel-power-system",
+    "track": "novel",
+    "stage": "stage2",
+    "file": "slices/novel-power-system.md",
+    "words": 1484,
+    "trigger": "阶段2定力量体系：公理三问+境界链换算+晋级四件套；部规划排境界节点与战力通胀控制"
+  }
+]

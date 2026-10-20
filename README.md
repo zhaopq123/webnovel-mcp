@@ -175,6 +175,22 @@
 
 ---
 
+## 附带套件：WritingMaster 双套装
+
+`suites/writing-master/` 收录第三方写作套件 WritingMaster（13 条命令 / 82 张知识切片 /
+29 个交付模板 / 5 大赛道 / 605 条自测），原样直入、**与主体互不依赖**：删掉 `suites/`
+本仓照常运行，反之亦然。两套装按客户端能力二选一：
+
+| 套装 | 给谁 | 入口 |
+|---|---|---|
+| `suites/writing-master/writing-master-skill-suite/` | 能读文件、能跑 bash 的 Agent（满血版） | `skills/writing-master/SKILL.md` |
+| `suites/writing-master/writing-master-mcp-suite/` | 只认 MCP 的客户端 | `scripts/mcp-server.mjs`（13 个 `wm_` 工具） |
+
+**别混账本**：主体状态在 `.webnovel/`，套件在 `.wm/`，同一本书只挂一套。装机与自检见
+[suites/writing-master/README.md](suites/writing-master/README.md)。
+
+---
+
 ## 两种运行方式
 
 ### 1. 局域网 / 手机部署（推荐，多个客户端共用）

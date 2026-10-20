@@ -5,5 +5,7 @@ config.env
 .deploy-tmp.tgz
 *.log
 *.corrupt
+# 附带套件的测试运行产物：跑一次 run.sh 就重写，且会把本机路径写进去（卫生门禁会红）
+suites/**/tests/.tap.txt
 .DS_Store
 Thumbs.db
