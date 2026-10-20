@@ -219,6 +219,40 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 
 ---
 
+## 升级（把这个链接丢给别的 Agent 就够）
+
+**书库不动**：升级只替换代码，`books/` 与 `config.env` 从不参与覆盖。把下面这段直接发给
+装着本工具的 Agent 即可：
+
+> 读 https://github.com/zhaopq123/webnovel-mcp 的 README「升级」一节，把当前部署升到最新版：
+> 先 `git pull` 拿到新代码，再按原来的部署方式重启；升级前后用 `/health` 比对 `version`。
+> **不要删 `books/` 和 `config.env`**，也不要把书库挪进仓库目录。
+
+按部署方式选一条：
+
+| 你怎么跑的 | 怎么升 |
+|---|---|
+| 本机 stdio / 局域网常驻 | `git pull` → 重启客户端里的 server 进程（MCP 配置不用改） |
+| 手机 / 服务器（`deploy-vivo.sh`） | `VIVO_HOST=<IP> VIVO_USER=<用户> bash scripts/deploy-vivo.sh`（幂等：保留 `books/`、保留 `config.env`、自动 restart） |
+| 只用客户端形态（专家包 / SKILL / 纯文本） | 重新导入 `expert/`，或重拷 `skills/`；规则原文只有 `prompt/CREATIVE-PROMPT.md` 一份，不用手动同步 |
+
+升完确认：
+
+```bash
+curl -s http://<host>:<port>/health      # version 应为新版本号
+```
+
+版本与兼容性：
+
+- **数据**：`.webnovel/` 结构向后兼容，老书无需迁移；要补登记手工数据的迁移基线，
+  用 `webnovel_doctor action=reconcile`（见 v1.4.0 变更说明）
+- **1.6.0 起附带套件 WritingMaster 升 2.0**：言情不再单列赛道，套件的
+  `--track romance` 改成 `--track novel --genre romance`（旧参数仍可用并提示迁移）；
+  套件账本 `.wm/` 与主体 `.webnovel/` 互相独立，互不迁移
+- **降级**：代码可回退到任意 tag，但已经被新版写过的账本不要指望旧版全认——升级前先备份 `books/`
+
+---
+
 ## 配置（环境变量）
 
 | 变量 | 默认 | 说明 |
