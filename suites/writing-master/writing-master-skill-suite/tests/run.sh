@@ -7,7 +7,25 @@ set -u
 PKG="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TESTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export PKG
-mkdir -p /tmp/wm-sbx
+# 沙箱根：本脚本自己定，外部只能用 $WM_SBX_BASE 指定**基目录**。
+# 只用 mktemp 造随机目录（0700），结束时**只删这一个**——绝不对调用方给的路径直接 rm -rf，
+# 否则 `WM_SBX_BASE=/tmp` 或 `/` 这种手滑就是灾难（评审指出过，别改回去）。
+if [ -z "${WM_SBX_ROOT:-}" ]; then
+  _base="${WM_SBX_BASE:-}"
+  if [ -z "$_base" ]; then
+    _base="${TMPDIR:-/tmp}"
+    { mkdir -p "$_base" && [ -w "$_base" ]; } 2>/dev/null || _base="$PKG/.tmp"
+  fi
+  WM_SBX_ROOT="$(mktemp -d "$_base/wm-sbx.XXXXXX" 2>/dev/null)" || {
+    echo "无法创建沙箱根（基目录 $_base）：检查可写性，或用 WM_SBX_BASE 指定" >&2; exit 2; }
+  chmod 700 "$WM_SBX_ROOT" 2>/dev/null || true
+else
+  case "$WM_SBX_ROOT" in
+    */wm-sbx|*/wm-sbx.*) ;;
+    *) echo "WM_SBX_ROOT 必须指向 .../wm-sbx 目录（拒绝 rm -rf 任意路径）：$WM_SBX_ROOT" >&2; exit 2 ;;
+  esac
+fi
+export WM_SBX_ROOT
 
 START=$(date +%s)
 TAP="$TESTS/.tap.txt"; : > "$TAP"
@@ -87,9 +105,12 @@ PCT=0; [ "$TOTAL" -gt 0 ] && PCT=$((TOTAL_OK * 100 / TOTAL))
   echo "## 三、说明"
   echo ""
   echo "- 断言协议: TAP 风格（ok/not ok），由 tests/run.sh 统计。"
-  echo "- 每条用例在独立沙箱（/tmp/wm-sbx/）运行，互不污染，结束自动清理。"
+  echo "- 每条用例在独立沙箱（$WM_SBX_ROOT/）运行，互不污染，结束自动清理。"
   echo "- 重跑: \`bash tests/run.sh\`（可指定包根: \`bash tests/run.sh /path/to/writing-master\`）。"
 } > "$TESTS/REPORT.md"
 
-rm -rf /tmp/wm-sbx
+# 只删本轮自己 mktemp 出来的那个目录；路径形态不符就宁可不删
+case "${WM_SBX_ROOT:-}" in
+  */wm-sbx|*/wm-sbx.*) [ -d "$WM_SBX_ROOT" ] && rm -rf -- "$WM_SBX_ROOT" ;;
+esac
 [ "$TOTAL_NO" = "0" ] && exit 0 || exit 1

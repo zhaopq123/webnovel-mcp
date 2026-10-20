@@ -1,9 +1,9 @@
 # WritingMaster 测试报告
 
-- 运行时间: 2026-10-20 10:32:08
-- 包根: `/home/z/my-project/writing-master-mcp-suite`
-- 环境: 1-release x86_64-pc-linux-gnu / Node v24.21.0
-- 结论: **全绿 ✅**（605/605 通过，通过率 100%，耗时 20s）
+- 运行时间: 2026-10-20 15:28:11
+- 包根: `/data/data/com.termux/files/home/wmsuites3/writing-master-mcp-suite`
+- 环境: 1-release aarch64-unknown-linux-android / Node v24.18.0
+- 结论: **全绿 ✅**（605/605 通过，通过率 100%，耗时 411s）
 
 ## 一、用例统计
 
@@ -33,5 +33,5 @@
 ## 三、说明
 
 - 断言协议: TAP 风格（ok/not ok），由 tests/run.sh 统计。
-- 每条用例在独立沙箱（/tmp/wm-sbx/）运行，互不污染，结束自动清理。
+- 每条用例在独立沙箱（/data/data/com.termux/files/usr/tmp/wm-sbx.P1IOqH/）运行，互不污染，结束自动清理。
 - 重跑: `bash tests/run.sh`（可指定包根: `bash tests/run.sh /path/to/writing-master`）。

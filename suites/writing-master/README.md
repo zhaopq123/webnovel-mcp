@@ -18,7 +18,9 @@
 - 29 个交付模板（`templates/`，覆盖 novel / romance / screenplay / jubensha / toolbook 五赛道）
 - 6 个技能（`skills/writing-master` 主路由 + 5 个 `wm-*` 赛道）
 - 13 条命令（`scripts/wm-*.sh`）+ 1 个 Node 引擎（`scripts/wm.js`，零第三方依赖）
-- 605 条自测（`tests/`，可删，删了不影响使用）
+- 605 条自测（`tests/`，可删，删了不影响使用；`bash tests/run.sh` 跑。沙箱根自动挑可写目录并
+  `mktemp` 出随机子目录，没有 `/tmp` 的 Termux 也能直接跑；想指定位置用 `WM_SBX_BASE=<基目录>`，
+  收尾只删本轮自己建的 `wm-sbx.XXXXXX`，不会碰你给的基目录）
 
 ## 装机
 
