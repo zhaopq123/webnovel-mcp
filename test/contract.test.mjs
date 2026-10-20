@@ -137,7 +137,8 @@ test('契约 · README 的工具数与工具表和注册表逐一对应（少一
   assert.equal(Number(heading[1]), TOOL_NAMES.length,
     `README 标题写 ${heading[1]} 个，注册表是 ${TOOL_NAMES.length} 个（新增/改名工具时标题必须跟着改）`);
 
-  const rows = [...readme.matchAll(/^\| `(webnovel_[a-z_]+)`\s*\|/gm)].map((m) => m[1]);
+  // 两族都要数：webnovel_* 是本体，wm_* 是附带的 WritingMaster 套件（同一服务暴露）
+  const rows = [...readme.matchAll(/^\| `((?:webnovel|wm)_[a-z_]+)`\s*\|/gm)].map((m) => m[1]);
   assert.equal(new Set(rows).size, rows.length, `README 工具表有重复行：${rows.join(',')}`);
   assert.deepEqual(rows.filter((n) => !TOOL_NAMES.includes(n)), [], 'README 表里列了不存在的工具');
   assert.deepEqual(TOOL_NAMES.filter((n) => !rows.includes(n)), [], '有工具没进 README 的表（读者不知道有这条路）');

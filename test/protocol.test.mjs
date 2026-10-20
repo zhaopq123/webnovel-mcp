@@ -98,7 +98,8 @@ test('MCP · tools/list 与工具名清单一致且 schema 干净', async () => 
     // 断言的是「清单 == 实际暴露」这个不变量，不是某个写死的数字
     assert.deepEqual(tools.map((t) => t.name).sort(), [...TOOL_NAMES].sort());
     for (const t of tools) {
-      assert.ok(t.name.startsWith('webnovel_'), `${t.name} 应以 webnovel_ 开头`);
+      // 两族前缀：webnovel_* 是本体，wm_* 是融合进来的 WritingMaster 套件
+      assert.match(t.name, /^(webnovel|wm)_[a-z_]+$/, `${t.name} 的前缀应是 webnovel_ 或 wm_`);
       assert.ok(t.description.length > 30, `${t.name} 的描述应足够说明何时使用`);
       assert.equal(t.inputSchema.type, 'object');
       assert.ok(Array.isArray(t.inputSchema.required));

@@ -17,6 +17,8 @@ import { renderKnowledgeItem } from '../lib/features/knowledge.js';
 import { learnMemory, recallMemory, memoryStats, setStyleBaseline, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
 import { projectStatus, compactStatusLine } from '../lib/features/status.js';
 import { buildRestorePack } from '../lib/features/restore.js';
+import { callWmTool } from '../lib/features/wm-bridge.mjs';
+import { WM_TOOLS, WM_TOOL_NAMES } from './wm-tools.generated.mjs';
 import { doctorCheck, renderDoctorMarkdown, doctorRebuild, doctorReconcile } from '../lib/features/doctor.js';
 import { termTypeLabel } from '../lib/features/terms.js';
 import { debtItemLine } from '../lib/features/ledger.js';
@@ -149,7 +151,8 @@ const BOOK_PARAM = {
 };
 
 /** 不接受 bookId 的工具（供契约测试共用同一口径，别在测试里重抄一遍名单）。 */
-export const NO_BOOK_PARAM = new Set(['webnovel_init', 'webnovel_books', 'webnovel_craft']);
+// wm_* 是 WritingMaster 套件的工具：它认的是作品目录 dir，不是书库里的 bookId，塞 bookId 只会误导模型。
+export const NO_BOOK_PARAM = new Set(['webnovel_init', 'webnovel_books', 'webnovel_craft', ...WM_TOOL_NAMES]);
 
 function tool(name, description, properties, required, handler) {
   const props = { ...properties };
@@ -961,6 +964,20 @@ export const TOOL_DEFS = [
     },
   ),
 ];
+
+// WritingMaster 套件的 13 个工具（wm_*）：schema 由 scripts/gen-wm-tools.mjs 从上游生成，
+// 执行时转发给上游 mcp-server.mjs 子进程——本仓不留第二份校验逻辑，避免两边漂移。
+for (const def of WM_TOOLS) {
+  TOOL_DEFS.push(tool(
+    def.name,
+    `【WritingMaster 套件 · 账本目录 .wm/】${def.description ?? ''}`
+      + '　当用户说「用 WritingMaster 这套流程写（剧本 / 剧本杀 / 工具书 / 言情模式）」'
+      + '或「换个写作流程」时使用；账本在 .wm/，与 .webnovel/ 互不相通。',
+    def.inputSchema?.properties ?? {},
+    def.inputSchema?.required ?? [],
+    async (args) => callWmTool(def.name, args ?? {}),
+  ));
+}
 
 const TOOL_MAP = new Map(TOOL_DEFS.map((t) => [t.name, t]));
 

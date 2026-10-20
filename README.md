@@ -59,7 +59,7 @@
 
 ---
 
-## 13 个工具
+## 26 个工具
 
 | 工具 | 什么时候用 |
 |---|---|
@@ -76,6 +76,28 @@
 | `webnovel_craft` | **查创作提示词**：地图 / 按节取 / 按阶段装配 / 设定记录落点 / 自检 |
 | `webnovel_memory` | 沉淀 / 检索写作经验（自动进后续任务书）；`action=baseline` 设定或重建文风基准 |
 | `webnovel_doctor` | 机器态体检 / 从提交链重放重建 / 老书迁移对账（`reconcile`，登记迁移基线） |
+
+### 附带的 WritingMaster 套件（另 13 个 `wm_*` 工具）
+
+同一套服务、同一个连接，额外暴露 13 个套件工具（账本在 `.wm/`，与 `.webnovel/` 互不相通）。
+想用另一套写作流程时直接调这族工具，不需要再起第二个服务。
+
+| 工具 | 干什么 |
+|---|---|
+| `wm_init` | 初始化作品项目（创建 .wm/ 账本） |
+| `wm_context` | 动笔前上下文装配 |
+| `wm_commit` | 事实增量提交（名词锁校验 + 三线 strand 标记） |
+| `wm_review` | 稿件机械审查门禁：AI味黑名单/英繁混排/标点/句长/专名笔误/引号专名/伏笔超期/钩子承接 |
+| `wm_status` | 进度面板：字数进度条 + 台账健康红绿灯 |
+| `wm_archive` | 部归档：压缩活跃区台账/摘要至 .wm/archive/part-N/，开启新部 |
+| `wm_restore` | 断点恢复包：新会话开工前重建上下文 |
+| `wm_doctor` | 账本体检 D01-D08（结构/JSON/引用/伏笔/部链/流水一致性） |
+| `wm_outline` | 四级大纲管理（master 总纲/part 部纲/volume 卷纲/chapter 章纲）+ 无章纲不动笔门禁开关（-… |
+| `wm_query` | 七类台账查询 + 全文检索（归档区感知）：characters/foreshadow/suspense/info-gap… |
+| `wm_pacing` | 三线节奏体检：quest 主线/fire 感情线/constellation 世界观 占比与断档检测，按赛道（言情模式专… |
+| `wm_memory` | 长期写作记忆（五类 style/technique/setting/feedback/character）：--add … |
+| `wm_verify` | 包完整性门禁：V1 知识切片 sha 锁（以 index.json 当前内容动态计算，--update-lock 生成/… |
+
 
 ### 几个硬能力（v1.4 起陆续落地，逐版明细见 [CHANGELOG](CHANGELOG.md)）
 
@@ -176,21 +198,18 @@
 
 ---
 
-## 附带套件：WritingMaster 双套装
+## 附带套件：WritingMaster（MCP 版已融合，Skill 版独立成仓）
 
-`suites/writing-master/` 附带同作者的写作套件 WritingMaster **2.0.0**（13 条命令 / 82 张知识切片 /
-29 个交付模板 / 4 大赛道 —— 长篇（含言情模式）/ 剧本 / 剧本杀 / 工具书 / 655 条自测），
-原样直入、**与主体互不依赖**：删掉 `suites/` 本仓照常运行，反之亦然。两套装按客户端能力二选一：
+**MCP 版就在本服务里**：`suites/writing-master/writing-master-mcp-suite/`，13 个 `wm_*` 工具与
+13 个 `webnovel_*` 一起从同一个 `tools/list` 出来——接一个服务、用同一个 token，不需要第二个进程。
+桥接层 `lib/features/wm-bridge.mjs` 只做协议转发，schema 由 `node scripts/gen-wm-tools.mjs`
+从上游生成，`test/wm-bridge.test.mjs` 守着「上游改了没同步」这条红线。
 
-| 套装 | 给谁 | 入口 |
-|---|---|---|
-| `suites/writing-master/writing-master-skill-suite/` | 能读文件、能跑 bash 的 Agent（满血版） | `skills/writing-master/SKILL.md` |
-| `suites/writing-master/writing-master-mcp-suite/` | 只认 MCP 的客户端 | `scripts/mcp-server.mjs`（13 个 `wm_` 工具） |
+**Skill 版在独立仓库**：[zhaopq123/writing-master](https://github.com/zhaopq123/writing-master)
+（给能读文件、能跑 bash 的 Agent 用，入口是 `bash scripts/wm-*.sh`；4 大赛道 / 13 命令 / 82 切片 / 29 模板）。
 
-**别混账本**：主体状态在 `.webnovel/`，套件在 `.wm/`，同一本书只挂一套。装机与自检见
-[suites/writing-master/README.md](suites/writing-master/README.md)。
-
----
+**别混账本**：本服务状态在 `.webnovel/`，套件在 `.wm/`，同一本书只挂一套。
+`wm_*` 认的是作品目录 `dir`，不是书库里的 `bookId`，两套数据物理隔离。
 
 ## 两种运行方式
 

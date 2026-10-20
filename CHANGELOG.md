@@ -1,5 +1,24 @@
 # 变更记录
 
+## [1.8.0] - 2026-10-20
+
+### 新增
+
+- **WritingMaster 的 MCP 版融合进本服务**：`tools/list` 现在同时返回 **13 个 `webnovel_*` + 13 个 `wm_*`**，
+  一个连接、一个 token、一个进程。想用另一套写作流程时直接调 `wm_*`，不必再起第二个 MCP。
+  - 桥接层 `lib/features/wm-bridge.mjs`：每次 `wm_*` 调用拉起上游 `mcp-server.mjs` 子进程走 JSON-RPC 转发，
+    **不复制任何校验逻辑**（上游仍是唯一事实源）
+  - `mcp/wm-tools.generated.mjs`：13 个工具 schema 由 `node scripts/gen-wm-tools.mjs` 生成，禁止手改；
+    `test/wm-bridge.test.mjs` 与 CI 的 `--check` 双向守住「上游改了没同步」
+  - `wm_*` 不带 `bookId`（它认作品目录 `dir`），两套账本 `.webnovel/` 与 `.wm/` 物理隔离
+
+### 变更
+
+- **Skill 版拆成独立仓库**：https://github.com/zhaopq123/writing-master（4 大赛道 / 13 命令 / 82 切片 / 29 模板 / 655 条自测）
+  本仓 `suites/writing-master/` 只保留 MCP 版；CI 的 suites job 相应只跑 mcp-suite，并新增 schema 对账步骤
+- 工具数 13 → 26；README / expert/README / prompt 片段 / docs 同步；
+  `contract.test.mjs` 的工具表门禁改为「两族一起数」
+
 ## [1.7.0] - 2026-10-20
 
 ### 新增

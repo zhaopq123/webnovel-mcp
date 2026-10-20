@@ -49,11 +49,12 @@ jobs:
       - name: 分发判据自己能变红
         run: node scripts/build-dist.mjs --selftest
 
-  # 附带套件（WritingMaster 双套装）的 bash 用例：只能在有 /tmp 的 Linux 上跑。
+  # 附带套件（WritingMaster MCP 版）的 bash 用例：只能在有 /tmp 的 Linux 上跑。
+  # 它的 13 个 wm_* 工具已经融合进本服务，这里同时守住「schema 与上游一致」与「套件自身 655 条用例」。
   # 套件 tests/lib.sh 把沙箱写死在 /tmp/wm-sbx；Windows 上 node -e 会把 /tmp 当 C:/tmp
   # （故障注入失效 → 07-restore 假红），Termux 根分区只读没有 /tmp，两边都跑不了。
   suites:
-    name: 附带套件 · WritingMaster 2.0
+    name: 附带套件 · WritingMaster MCP 版
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -62,20 +63,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 跑两套装全量用例（各 17 组 / 655 条断言）
-        run: |
-          set -e
-          for s in suites/writing-master/writing-master-skill-suite \
-                   suites/writing-master/writing-master-mcp-suite; do
-            echo "===== $s ====="
-            bash "$s/tests/run.sh"
-          done
+      - name: wm 工具 schema 与上游对账（改了套件没重新生成 = 红）
+        run: node scripts/gen-wm-tools.mjs --check
+
+      - name: 套件全量用例（17 组 / 655 条断言）
+        run: bash suites/writing-master/writing-master-mcp-suite/tests/run.sh
 
       - name: 留档测试报告（跑挂也能拿到现场）
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: writing-master-report
-          path: |
-            suites/writing-master/writing-master-skill-suite/tests/REPORT.md
-            suites/writing-master/writing-master-mcp-suite/tests/REPORT.md
+          path: suites/writing-master/writing-master-mcp-suite/tests/REPORT.md

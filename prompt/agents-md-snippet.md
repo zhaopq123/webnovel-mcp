@@ -76,6 +76,8 @@
 | `webnovel_memory` | 沉淀/检索写作经验（自动进后续任务书）；`baseline` 管文风基准 |
 | `webnovel_doctor` | 体检 `check` / 修客观引用并登记迁移基线 `reconcile` / 从提交链重建 `rebuild` |
 
+- **WritingMaster 套件工具（13 个，账本 `.wm/`）**：`wm_init`、`wm_context`、`wm_commit`、`wm_review`、`wm_status`、`wm_archive`、`wm_restore`、`wm_doctor`、`wm_outline`、`wm_query`、`wm_pacing`、`wm_memory`、`wm_verify`
+
 ## 五、每章闭环（不可跳步）
 
 1. `webnovel_context chapter=N` 取任务书；有 **blockers**（如缺章纲）先解决，不裸写。
