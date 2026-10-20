@@ -219,19 +219,32 @@ webnovel-mcp-ctl clean [--force] <bookId>...   # 删书（已写正文的要显�
 
 ---
 
-## 升级（把这个链接丢给别的 Agent 就够）
+## 升级
 
-**书库不动**：升级只替换代码，`books/` 与 `config.env` 从不参与覆盖。把下面这段直接发给
-装着本工具的 Agent 即可：
+**书库不动**：升级只替换代码，`books/` 与 `config.env` 从不参与覆盖。
+
+先分清一件事：**「连服务」和「部署服务」不是一回事**。
+
+- **只是连别人搭好的服务**（手里只有一个 `http://<host>:<port>/mcp` 地址）：**你不用升级，也别去 `git pull`**。
+  升级是服务主人那一侧做一次的事，多个 Agent 共用同一个服务，服务端升完全部生效。
+  你能做的只有两件：确认 `/health` 的 `version` 变了；没变就说明服务端还没升。
+- **自己跑着服务的那台机器**：按下表升。
+
+### 给「只连服务」的 Agent 的话
+
+> 你连的是共享的 webnovel-mcp 服务，**不要拉代码、不要碰 `books/`**。
+> 升级由服务端统一完成：重连客户端后调 `/health` 看 `version`；没变就是服务端还没升，等主人升。
+> 如果你发现接口报错或工具缺失，先看 `version`，再让主人去看服务端日志，别自己改部署。
+
+### 给「服务主人」的 Agent 的话
 
 > 读 https://github.com/zhaopq123/webnovel-mcp 的 README「升级」一节，把当前部署升到最新版：
 > 先 `git pull` 拿到新代码，再按原来的部署方式重启；升级前后用 `/health` 比对 `version`。
 > **不要删 `books/` 和 `config.env`**，也不要把书库挪进仓库目录。
 
-按部署方式选一条：
-
 | 你怎么跑的 | 怎么升 |
 |---|---|
+| 只连别人的共享服务（没有仓库） | **不用升**：重连客户端即可，版本以 `/health` 为准 |
 | 本机 stdio / 局域网常驻 | `git pull` → 重启客户端里的 server 进程（MCP 配置不用改） |
 | 手机 / 服务器（`deploy-vivo.sh`） | `VIVO_HOST=<IP> VIVO_USER=<用户> bash scripts/deploy-vivo.sh`（幂等：保留 `books/`、保留 `config.env`、自动 restart） |
 | 只用客户端形态（专家包 / SKILL / 纯文本） | 重新导入 `expert/`，或重拷 `skills/`；规则原文只有 `prompt/CREATIVE-PROMPT.md` 一份，不用手动同步 |
