@@ -76,7 +76,7 @@
 | `webnovel_memory` | 沉淀 / 检索写作经验（自动进后续任务书）；`action=baseline` 设定或重建文风基准 |
 | `webnovel_doctor` | 机器态体检 / 从提交链重放重建 / 老书迁移对账（`reconcile`，登记迁移基线） |
 
-### v1.4.0：老书能升级，审查更硬
+### 几个硬能力（v1.4 起陆续落地，逐版明细见 [CHANGELOG](CHANGELOG.md)）
 
 - **迁移基线**：`doctor action=reconcile` 把提交链之外手工维护的人物、伏笔、专名登记为
   `.webnovel/commits/_baseline.json`，只修正文路径/字数/进度这类客观引用；rebuild 和新章节都在

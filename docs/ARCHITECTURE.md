@@ -1,6 +1,6 @@
 # webnovel-mcp · 技术架构
 
-> 版本 v1.4.0 ｜ 形态：一个 MCP 服务（HTTP Streamable + stdio 双模式）｜ 零运行时依赖
+> 版本：以 `package.json` 为准（当前 v1.6.1）｜ 形态：一个 MCP 服务（HTTP Streamable + stdio 双模式）｜ 零运行时依赖
 
 ---
 
