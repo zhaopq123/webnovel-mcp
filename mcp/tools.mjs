@@ -520,7 +520,11 @@ export const TOOL_DEFS = [
       }
       if (action === 'write_text') {
         const r = writeChapterText(dir, args.chapter, args.title, content);
-        return `已保存正文：${r.path}（${countWords(content)} 字）\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
+        const dupNote = r.duplicates?.length
+          ? `\n\n⚠ 第 ${r.chapter} 章还有 ${r.duplicates.length} 个旧正文文件（${r.duplicates.slice(0, 3).join('；')}）。`
+            + '本次覆盖/读取的是最新一份；旧文件不会自动删除（避免动你的稿子），建议自行归档。'
+          : '';
+        return `已保存正文：${r.path}（${countWords(content)} 字，已逐字回读校验）${dupNote}\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
       }
       if (action === 'write_note') {
         const r = writeNote(dir, content, args.date);
