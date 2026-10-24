@@ -67,15 +67,15 @@
 | `webnovel_status` | 「写到哪了 / 接下来做什么」——结构换算、部进度与倒计时、按优先级排的待办 |
 | `webnovel_restore` | 换会话/换 Agent 接手时的**断点恢复包**：账本完整性 + 进度 + 待办 + 下一章怎么接，一份贴完就能开工 |
 | `webnovel_books` | 书库里有哪几本书 / 切换书 |
-| `webnovel_outline` | 总纲 / **部纲** / 卷纲 / **章纲** / 保存正文 / 当日手记；`write_part` 登记部，`archive_part` 归档部摘要；`read` 必须显式传 `scope` |
+| `webnovel_outline` | 总纲 / **部纲** / 卷纲 / **章纲** / 保存正文 / 当日手记；`write_part` 登记部，`archive_part` 归档部摘要；`read` 必须显式传 `scope`；`export` 导出全文（txt/md/json），`replace_all` 批量替换（默认 dry-run），`history`/`rollback` 单章版本历史 |
 | `webnovel_context` | **动笔前**拿写作任务书（含本章必守规则切片） |
 | `webnovel_commit` | **写完后**提交事实增量（状态/角色档案/伤病与持有物/伏笔/悬念/支票/红鲱鱼/时间线/专名/视角与知情变化） |
 | `webnovel_query` | 查角色 / 伏笔 / 设定 / 时间线 / 专名 / 全文检索 |
-| `webnovel_pacing` | 节奏体检（三线占比与断档） |
+| `webnovel_pacing` | 节奏体检（三线占比与断档）；`set_strand` 给已提交章节补/改线别 |
 | `webnovel_review` | 审查某一章（一致性 + 归属 + 信息隔离 + 文风 / AI 味 + 可选外部查重），结果落盘并作为提交凭据 |
 | `webnovel_craft` | **查创作提示词**：地图 / 按节取 / 按阶段装配 / 设定记录落点 / 自检 |
 | `webnovel_memory` | 沉淀 / 检索写作经验（自动进后续任务书）；`action=baseline` 设定或重建文风基准 |
-| `webnovel_doctor` | 机器态体检 / 从提交链重放重建 / 老书迁移对账（`reconcile`，登记迁移基线） |
+| `webnovel_doctor` | 机器态体检 / 从提交链重放重建 / 老书迁移对账（`reconcile`，登记迁移基线）/ 同章重复正文清理（`prune`，默认 dry-run）/ 全书机检（`scan`） |
 
 ### 附带的 WritingMaster 套件（另 13 个 `wm_*` 工具）
 
@@ -313,6 +313,9 @@ curl -s http://<host>:<port>/health      # version 应为新版本号
 3. **写操作原子 + 加锁**：临时文件 + rename 落盘，跨进程锁文件，并发提交同一章不会写坏数据。
 4. **`.webnovel/` 是投影**：真源永远是 `正文/` + `大纲/`，删了也能重新提交出来。
 5. 建议只在家里的局域网用，不要映射到公网。
+6. **并发**：服务端不设硬性并发上限，也不主动限流；写操作靠原子写 + 项目锁保证同一章不会写坏。
+   实测 6 路并发回拉 300 章稳定（约 26 秒）。建议批量回拉控制在 6 路以内；客户端超时用连接器的
+   `timeout` 控制（示例 240000ms）。请求体过大或服务不可达会返回明确错误，不会静默截断。
 
 ---
 

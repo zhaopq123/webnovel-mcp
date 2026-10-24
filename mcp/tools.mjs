@@ -11,7 +11,7 @@ import { initProject, isInitialized, loadProject } from '../lib/core/project.js'
 import { buildWritingBrief } from '../lib/features/context.js';
 import { commitChapter } from '../lib/features/commit.js';
 import { runQuery } from '../lib/features/query.js';
-import { analyzePacing, renderPacingMarkdown } from '../lib/features/pacing.js';
+import { analyzePacing, renderPacingMarkdown, setChapterStrand } from '../lib/features/pacing.js';
 import { reviewChapter } from '../lib/features/review.js';
 import { renderKnowledgeItem } from '../lib/features/knowledge.js';
 import { learnMemory, recallMemory, memoryStats, setStyleBaseline, MEMORY_KINDS, MEMORY_KIND_LABEL } from '../lib/features/memory.js';
@@ -28,7 +28,13 @@ import { checkPlagiarism, PLAGIARISM_LIMITS } from '../lib/features/plagiarism.j
 import {
   writeMasterOutline, writeVolumeOutline, writeChapterOutline, writeChapterText, writeNote,
   readMaster, readVolume, readChapter, readChapterText, readNote,
+  listChapterHistory, readChapterHistory, rollbackChapterText,
 } from '../lib/features/outline.js';
+import {
+  exportBook, replaceAllInBook, pruneDuplicateTexts,
+} from '../lib/features/booktext.js';
+import { scanBook, renderScanMarkdown } from '../lib/features/scan.js';
+import { parseChapterSpec, formatChapterSpec } from '../lib/core/chapter-range.js';
 import {
   writePartOutline, archivePart, readPart, readPartSummary, PART_SUMMARY_MAX_LINES,
 } from '../lib/features/parts.js';
@@ -217,7 +223,7 @@ export function statusPreamble(config) {
  * 客户端不会拦），旧实现会静默丢掉这些字段：索引里 strand 变 null、前情提要没了摘要、
  * 节奏统计失真。这里把放错位置的字段提回顶层，并把「提过什么」回给模型，让它下次写对。
  * ------------------------------------------------------------------ */
-const COMMIT_TOP_FIELDS = ['summary', 'strand', 'hook', 'ending', 'title', 'wordCount', 'force', 'pov'];
+const COMMIT_TOP_FIELDS = ['summary', 'strand', 'hook', 'ending', 'title', 'wordCount', 'force', 'pov', 'backfill', 'note'];
 const DELTA_FIELDS = ['protagonist', 'characters', 'world', 'timeline', 'foreshadowing', 'terms', 'knowledge'];
 
 export function normalizeCommitArgs(args = {}) {
@@ -247,9 +253,26 @@ export function normalizeCommitArgs(args = {}) {
   }
 
   if (!normalized.summary) {
-    notes.push('这次没传 `summary`——它会成为下一章的前情提要。建议再提交一次，把摘要补上。');
+    notes.push('这次没传 `summary`——首次提交会缺前情提要；重提已有章节则保留原摘要（不传=保留，传空串=清空）。');
   }
   return { normalized, notes };
+}
+
+/** 该 action 的必填参数报错：一次把缺的、该传的全列出来，别让模型猜。 */
+function requireActionArgs(action, args, required, optional = []) {
+  const missing = required.filter((key) => {
+    const v = args[key];
+    return v === undefined || v === null || (typeof v === 'string' && v.trim() === '');
+  });
+  if (missing.length === 0) return;
+  const requiredText = required.length ? required.join(' / ') : '（无）';
+  const optionalText = optional.length ? `；可选：${optional.join(' / ')}` : '';
+  throw new Error(`${action} 缺少必填参数：${missing.join('、')}。必填：${requiredText}${optionalText}`);
+}
+
+/** 正文读取头部：多文件时明确告诉调用方取的是哪一份。 */
+function textSourceLine(found) {
+  return `（取自：${found.name}${found.mtime ? `，mtime ${found.mtime}` : ''}${found.duplicates?.length ? `；同章另有 ${found.duplicates.length} 个旧文件` : ''}）`;
 }
 
 export const TOOL_DEFS = [
@@ -426,17 +449,27 @@ export const TOOL_DEFS = [
       + 'write_part（写第 N 部部纲并登记起止章——多部书在拆卷前先定部）、'
       + 'archive_part（部完结时归档【部总结包】压缩后的摘要，≤15 行）、'
       + 'write_chapter（写第 N 章章纲——写正文前必须先做这步）、write_text（保存第 N 章正文）、'
-      + 'write_note（当日手记落盘：追加写 手记/YYYY-MM-DD.md，date 可选）、read（读回任意一项）。'
+      + 'write_note（当日手记落盘：追加写 手记/YYYY-MM-DD.md，date 可选）、read（读回任意一项）、'
+      + 'export（导出正文：format=txt|md|json，range="1-300"）、'
+      + 'replace_all（全库字面量替换：find/replace/range，默认 dry_run=true 只报命中）、'
+      + 'history（列某章历史版本）、rollback（回滚到某章历史版本 version=N）。'
       + '章纲是写作的前置条件：没有章纲时 webnovel_context 会返回 blocker。'
-      + '当用户说「定大纲 / 拆部 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章 / 记下手记」时使用。',
+      + '当用户说「定大纲 / 拆部 / 拆卷 / 写章纲 / 这章要发生什么 / 保存这章 / 记下手记 / 导出全文 / 批量替换」时使用。',
     {
       action: {
         type: 'string',
-        enum: ['write_master', 'write_volume', 'write_part', 'archive_part', 'write_chapter', 'write_text', 'write_note', 'read'],
+        enum: ['write_master', 'write_volume', 'write_part', 'archive_part', 'write_chapter', 'write_text', 'write_note', 'read', 'export', 'replace_all', 'history', 'rollback'],
         description: '要执行的动作。',
       },
       text: { type: 'string', description: '要写入的 Markdown 内容（write_* 动作必填）。' },
-      chapter: { type: 'number', description: '章节号（write_chapter / write_text / read 时用）。' },
+      chapter: { type: 'number', description: '章节号（write_chapter / write_text / read / history / rollback 时用）。' },
+      chapters: { type: 'string', description: '批量读正文的章号：支持 "1-14,247,280"（read scope=text 时用；也可只传 chapter 读单章）。' },
+      version: { type: 'number', description: '历史版本号（history 返回的 version，从旧到新 1..N；read / rollback 时用）。' },
+      format: { type: 'string', enum: ['txt', 'md', 'json'], description: 'export 的输出格式，默认 txt。' },
+      range: { type: 'string', description: '章号范围，例如 "1-300" 或 "1-14,247,280"（export / replace_all 时用；缺省=全部有正文的章）。' },
+      find: { type: 'string', description: 'replace_all 要查找的字面量（必填，不支持正则）。' },
+      replace: { type: 'string', description: 'replace_all 的替换文本（可为空串，表示删除）。' },
+      dry_run: { type: 'boolean', description: 'replace_all 是否只预览不落盘，默认 true；确认命中后再显式传 false 执行。' },
       volume: { type: 'number', description: '卷号（write_volume 时用）。' },
       part: { type: 'number', description: '部号（write_part / archive_part 时用）。' },
       title: { type: 'string', description: '标题：write_text 时是章节标题；write_volume 时是卷名；write_part 时是部名。' },
@@ -454,8 +487,10 @@ export const TOOL_DEFS = [
       if (action === 'read') {
         const explicitScope = args.scope != null && String(args.scope).trim() !== '';
         const scope = explicitScope ? String(args.scope).trim()
-          : (args.chapter ? 'chapter' : 'master');
-        const hint = explicitScope ? '' : `\n\n（未指定 scope，本次读的是${scope === 'chapter' ? '章纲' : '总纲'}。要读别的请显式传 scope：master 总纲 / part 部纲(part=N) / volume 卷纲(volume=N) / chapter 章纲(chapter=N) / text 正文(chapter=N) / note 手记(date=YYYY-MM-DD，缺省今天) / part_summary 部摘要(part=N)）`;
+          : (args.chapters !== undefined || args.version !== undefined ? 'text'
+            : (args.chapter ? 'chapter' : 'master'));
+        const scopeLabel = { chapter: '章纲', text: '正文', master: '总纲' }[scope] ?? scope;
+        const hint = explicitScope ? '' : `\n\n（未指定 scope，本次读的是${scopeLabel}。要读别的请显式传 scope：master 总纲 / part 部纲(part=N) / volume 卷纲(volume=N) / chapter 章纲(chapter=N) / text 正文(chapter=N) / note 手记(date=YYYY-MM-DD，缺省今天) / part_summary 部摘要(part=N)）`;
         if (scope === 'master') {
           const content = readMaster(dir);
           return (content ? `# 总纲（${id}）\n\n${content.trim()}` : `（《${id}》还没有总纲）`) + hint;
@@ -483,12 +518,56 @@ export const TOOL_DEFS = [
           const found = readNote(dir, args.date);
           return (found ? found.text.trim() : `（${args.date ? args.date : '今天'} 还没有当日手记）`) + hint;
         }
-        const found = readChapterText(dir, args.chapter);
-        return (found ? found.text : `（第 ${args.chapter} 章还没有正文）`) + hint;
+        if (scope === 'text') {
+          if (args.version !== undefined) {
+            requireActionArgs('read（历史版本）', args, ['chapter', 'version']);
+            const old = readChapterHistory(dir, args.chapter, args.version);
+            return `（历史版本 v${old.version}：${old.name}${old.mtime ? `，mtime ${old.mtime}` : ''}）\n\n${old.text}` + hint;
+          }
+          if (args.chapters !== undefined && String(args.chapters).trim() !== '') {
+            const nums = parseChapterSpec(args.chapters);
+            const blocks = [];
+            const missing = [];
+            for (const n of nums) {
+              const found = readChapterText(dir, n);
+              if (!found) { missing.push(n); continue; }
+              blocks.push(`## 第 ${n} 章 ${textSourceLine(found)}\n\n${found.text.trimEnd()}`);
+            }
+            if (blocks.length === 0) return `（第 ${args.chapters} 章都没有正文）` + hint;
+            const tail = missing.length ? `\n\n（缺正文：第 ${missing.join('、')} 章）` : '';
+            return `${blocks.join('\n\n---\n\n')}${tail}` + hint;
+          }
+          requireActionArgs('read scope=text', args, ['chapter']);
+          const found = readChapterText(dir, args.chapter);
+          return (found ? `${textSourceLine(found)}\n\n${found.text}` : `（第 ${args.chapter} 章还没有正文）`) + hint;
+        }
       }
 
+      const REQUIRED = {
+        write_master: ['text'],
+        write_part: ['text'],
+        write_volume: ['text'],
+        write_chapter: ['chapter', 'text'],
+        write_text: ['chapter', 'text'],
+        write_note: ['text'],
+        archive_part: ['summary'],
+        export: [],
+        replace_all: ['find'],
+        history: ['chapter'],
+        rollback: ['chapter', 'version'],
+      };
+      const OPTIONAL = {
+        write_master: [], write_part: ['part', 'title', 'chapterRange', 'hook'],
+        write_volume: ['volume', 'title', 'chapterRange'], write_chapter: ['chapter'],
+        write_text: ['title'], write_note: ['date'], archive_part: ['part', 'hook'],
+        export: ['format', 'range'], replace_all: ['replace', 'range', 'dry_run'],
+        history: [], rollback: [],
+      };
+      if (!REQUIRED[action]) {
+        throw new Error(`未知的 action：${action}。可用：write_master / write_volume / write_part / archive_part / write_chapter / write_text / write_note / read / export / replace_all / history / rollback`);
+      }
+      requireActionArgs(`action=${action}`, args, REQUIRED[action], OPTIONAL[action]);
       const content = String(args.text ?? '');
-      if (action !== 'archive_part' && !content.trim()) throw new Error(`${action} 需要提供 text 内容`);
 
       if (action === 'write_master') {
         const r = writeMasterOutline(dir, content);
@@ -522,9 +601,48 @@ export const TOOL_DEFS = [
         const r = writeChapterText(dir, args.chapter, args.title, content);
         const dupNote = r.duplicates?.length
           ? `\n\n⚠ 第 ${r.chapter} 章还有 ${r.duplicates.length} 个旧正文文件（${r.duplicates.slice(0, 3).join('；')}）。`
-            + '本次覆盖/读取的是最新一份；旧文件不会自动删除（避免动你的稿子），建议自行归档。'
+            + '本次覆盖/读取的是最新一份；旧文件不会自动删除（避免动你的稿子），可用 webnovel_doctor action=prune 预览清理。'
           : '';
-        return `已保存正文：${r.path}（${countWords(content)} 字，已逐字回读校验）${dupNote}\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
+        const historyNote = r.history?.saved ? `；旧稿已存历史 ${r.history.name}` : '';
+        const titleNote = r.titleCollisions?.length
+          ? `\n\n⚠ 标题「${args.title ?? ''}」与第 ${r.titleCollisions.map((c) => c.chapter).join('、')} 章重复——建议改成唯一标题。`
+          : '';
+        return `已保存正文：${r.path}（${countWords(content)} 字，已逐字回读校验；mtime ${r.mtime}${historyNote}）${dupNote}${titleNote}\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
+      }
+      if (action === 'export') {
+        const range = parseChapterSpec(args.range);
+        const r = exportBook(dir, { format: args.format ?? 'txt', range });
+        const missing = r.missing?.length ? `；缺正文：第 ${r.missing.join('、')} 章` : '';
+        return `已导出 ${r.chapters.length} 章（${r.format}${range ? `，范围 ${formatChapterSpec(range)}` : '，全部有正文的章'}${missing}）\n\n${r.text}`;
+      }
+      if (action === 'replace_all') {
+        const range = parseChapterSpec(args.range);
+        const dryRun = args.dry_run !== false;
+        const r = replaceAllInBook(dir, { find: args.find, replace: args.replace ?? '', range, dryRun });
+        const lines = [
+          `${dryRun ? '预览（未落盘）' : '已执行'}：find「${r.find}」→ replace「${r.replace}」，命中 ${r.totalHits} 处 / ${r.chapters.length} 章`,
+        ];
+        for (const row of r.chapters) lines.push(`- 第 ${row.chapter} 章：${row.hits} 处${row.history?.saved ? `（旧稿存 ${row.history.name}）` : ''}`);
+        if (r.missing?.length) lines.push(`- 缺正文：第 ${r.missing.join('、')} 章`);
+        lines.push('', dryRun
+          ? '确认无误后，用同样的 find/replace/range 再调一次，并显式传 dry_run=false 才会真正写入。'
+          : '已逐章回读校验。批量替换不会自动提交；如需同步字数与索引，请对改动章重新 commit。');
+        return lines.join('\n');
+      }
+      if (action === 'history') {
+        const list = listChapterHistory(dir, args.chapter);
+        if (list.length === 0) return `第 ${args.chapter} 章还没有历史版本（每次 write_text 覆盖前会自动存一版，最多 5 版）。`;
+        return [
+          `第 ${args.chapter} 章历史版本（${list.length} 版，从旧到新）：`,
+          ...list.map((v) => `- v${v.version}｜${v.name}｜${v.bytes} 字节${v.mtime ? `｜${v.mtime}` : ''}`),
+          '',
+          `读某一版：webnovel_outline action=read scope=text chapter=${args.chapter} version=N；回滚：action=rollback chapter=${args.chapter} version=N`,
+        ].join('\n');
+      }
+      if (action === 'rollback') {
+        const r = rollbackChapterText(dir, args.chapter, args.version);
+        return `已回滚第 ${args.chapter} 章到 v${args.version}：${r.path}（mtime ${r.mtime}）`
+          + (r.history?.saved ? `\n回滚前的当前稿已存为 ${r.history.name}，可再次回滚。` : '');
       }
       if (action === 'write_note') {
         const r = writeNote(dir, content, args.date);
@@ -565,14 +683,18 @@ export const TOOL_DEFS = [
       + '先用 webnovel_review 审一遍并按建议修改；确认要按原稿提交再传 force=true。'
       + '多视角章节可传 pov（本章视角人物）与 deltas.knowledge（谁得知/使用/透露了什么）：'
       + '8.2 信息隔离会核对「得知必须有来源、使用/透露必须先知道」，违反默认拦截（force 可过）。'
-      + '重复提交同一章是覆盖（幂等）；重提早于当前进度的旧章默认被拒绝（防状态回退），'
-      + '确要修正历史章节请传 force=true（历史修正模式：deltas 会被忽略，只更新该章的索引、摘要与字数，线别沿用原值）。'
+      + '重复提交同一章是覆盖（幂等）；字段语义统一为「不传=保留、传空串/null=清空、传值=更新」，'
+      + '回执里的 fields 会逐字段标注 kept/updated/cleared。'
+      + '重提早于当前进度的旧章默认被拒绝（防状态回退），确要修正历史章节请传 force=true'
+      + '（历史修正模式：deltas 不参与状态重放，只更新该章的索引、摘要与字数，线别沿用原值）；'
+      + '若只是想给旧章补录事实，再加 backfill=true —— deltas 会写进 .webnovel/backfills.json 补录区，'
+      + '不改变当前状态；线别用 webnovel_pacing action=set_strand 单独补。'
       + '提交记录本身永久保留。'
       + '当用户说「写完了 / 提交这章 / 记下来 / 更新设定」时使用。',
     {
       chapter: { type: 'number', description: '章节号。' },
       title: { type: 'string', description: '章节标题。不传则从正文文件名推断。' },
-      summary: { type: 'string', description: '本章摘要（2-4 句）。会作为下一章的前情提要，务必写。' },
+      summary: { type: 'string', description: '本章摘要（建议 100–400 字，会作为下一章的前情提要）。重提已有章节时不传=保留原摘要，传空串=清空。' },
       strand: {
         type: 'string',
         enum: ['quest', 'fire', 'constellation'],
@@ -588,7 +710,7 @@ export const TOOL_DEFS = [
           type: { type: 'string', description: '钩子类型，例如 危机钩 / 悬念钩 / 情感钩。' },
           strength: { type: 'string', enum: ['weak', 'medium', 'strong'], description: '钩子强度。' },
         },
-        description: '章末钩子。',
+        description: '章末钩子。重提时不传=保留原值、传 null=清空、传对象=更新。',
       },
       ending: {
         type: 'object',
@@ -596,13 +718,22 @@ export const TOOL_DEFS = [
           time: { type: 'string', description: '结尾的时间，例如「三日后」。' },
           location: { type: 'string', description: '结尾地点。' },
         },
-        description: '结尾场景，用于下一章的连贯性检查。',
+        description: '结尾场景，用于下一章的连贯性检查。重提时不传=保留原值、传 null=清空、传对象=更新。',
       },
       wordCount: { type: 'number', description: '字数。不传则自动从正文文件统计。' },
       force: {
         type: 'boolean',
         description: '逃生门：跳过「上一章未提交」警告、旧章重提阻断与审查门禁。'
-          + '旧章重提（早于当前进度）带 force 时进入历史修正模式：deltas 全部忽略，只更新该章索引、摘要与字数（线别沿用原值）。',
+          + '旧章重提（早于当前进度）带 force 时进入历史修正模式：deltas 不参与状态重放，只更新该章索引、摘要与字数（线别沿用原值）。',
+      },
+      backfill: {
+        type: 'boolean',
+        description: '仅历史修正模式：把本次 deltas 写入补录区 .webnovel/backfills.json，只补事实、不改当前状态。'
+          + '用于旧章漏记的事实永久进不了库。查询用 webnovel_query kind=backfill。',
+      },
+      note: {
+        type: 'string',
+        description: '仅 backfill=true：补录原因/来源备注（写进补录记录，方便回查）。',
       },
       deltas: {
         type: 'object',
@@ -646,6 +777,16 @@ export const TOOL_DEFS = [
 
       const lines = [`已提交第 ${result.chapter} 章《${result.title}》——${result.words} 字`];
       if (result.strand) lines.push(`线别：${result.strand}`);
+      if (result.fields) {
+        const label = { kept: '保留', updated: '更新', cleared: '清空', empty: '空', derived: '推断' };
+        const order = ['title', 'summary', 'hook', 'ending', 'strand'];
+        const bits = order.filter((k) => result.fields[k]).map((k) => `${k}=${label[result.fields[k]] ?? result.fields[k]}`);
+        if (bits.length > 0) lines.push(`字段：${bits.join('｜')}`);
+      }
+      if (result.backfill) {
+        lines.push(`补录：第 ${result.chapter} 章${result.backfill.keys?.length ? `（${result.backfill.keys.join('、')}）` : ''}已进补录区，不参与状态重放`
+          + (result.backfill.strand ? `；线别 ${result.backfill.strand}` : ''));
+      }
       // 文风基准只在首次提交建立时播一行；日常对比安静，漂移走下面的警告区。
       if (result.style?.baselineCreated) {
         lines.push(`文风基准已建立（第 ${result.style.baselineAtChapter} 章；之后每 ${STYLE_THRESHOLDS.compareEvery} 章自动对比，可用 webnovel_memory action=baseline 重设）`);
@@ -687,7 +828,8 @@ export const TOOL_DEFS = [
         lines.push('', '参数位置提醒（已自动处理，下次照右边写）：');
         for (const n of notes) lines.push(`- ${n}`);
       }
-      lines.push('', `下一步：用 webnovel_context chapter=${p.currentChapter + 1} 取下一章任务书。`);
+      const nextAfter = result.backfill ? p.currentChapter : Math.max(p.currentChapter, result.chapter);
+      lines.push('', `下一步：用 webnovel_context chapter=${nextAfter + 1} 取下一章任务书。`);
       lines.push('', bookLine(config, id, dir));
       return lines.join('\n');
     },
@@ -700,13 +842,14 @@ export const TOOL_DEFS = [
       + 'foreshadowing（伏笔台账）、chapter（某章详情与事实变化）、'
       + 'setting（设定集，传 name 查单篇）、timeline（事件时间线）、'
       + 'term（专名账本：传 name 查单个名字（别名也算命中）、传 type 按类别筛、都不传列全表）、'
-      + 'memory（写作经验）、search（在正文/大纲/设定/摘要里全文检索关键词）。'
+      + 'memory（写作经验）、search（在正文/大纲/设定/摘要里全文检索关键词）、'
+      + 'backfill（历史章补录区：commit backfill=true 写入的事实）。'
       + '当用户问「主角现在什么境界 / 某某是谁 / 玉佩那条伏笔还开着吗 / 幽冥宗这个名字登记过吗 / 之前哪一章写过 X」时使用。'
       + '注意：动笔前拿上下文应该用 webnovel_context，不是这个工具。',
     {
       kind: {
         type: 'string',
-        enum: ['status', 'character', 'foreshadowing', 'chapter', 'setting', 'timeline', 'term', 'memory', 'search'],
+        enum: ['status', 'character', 'foreshadowing', 'chapter', 'setting', 'timeline', 'term', 'memory', 'search', 'backfill'],
         description: '查询类型。',
       },
       name: { type: 'string', description: '角色名（kind=character）、设定篇名（kind=setting）或专名（kind=term）。' },
@@ -732,14 +875,25 @@ export const TOOL_DEFS = [
     'webnovel_pacing',
     '节奏体检：统计主线剧情（quest）/ 感情线（fire）/ 世界观（constellation）三条线的占比与断档，'
       + '并按网文经验红线告警（主线连续不超过 5 章、感情线断档不超过 10 章、世界观不超过 15 章）。'
-      + '当用户说「节奏怎么样 / 是不是该写感情线了 / 读者说最近不好看 / 编辑说情节单一」时使用。',
+      + 'action=set_strand 可给已提交章节补/改线别（只动统计标签，不改状态卡与伏笔）。'
+      + '当用户说「节奏怎么样 / 是不是该写感情线了 / 读者说最近不好看 / 编辑说情节单一 / 把某章标成感情线」时使用。',
     {
+      action: { type: 'string', enum: ['report', 'set_strand'], description: 'report=节奏报告（默认）/ set_strand=给某章设置线别。' },
+      chapter: { type: 'number', description: 'set_strand 的章节号（必须是已提交章节）。' },
+      strand: { type: 'string', description: 'set_strand 的线别：quest / fire / constellation（也认主线/感情线/世界观）。' },
       uptoChapter: { type: 'number', description: '统计到第几章（默认全部已提交章节）。' },
       window: { type: 'number', description: '「最近 N 章」窗口大小，默认 20。' },
     },
     [],
     async (args, config) => {
       const { id, dir } = requireBook(config, args.bookId);
+      const action = String(args.action ?? 'report').trim() || 'report';
+      if (action === 'set_strand') {
+        requireActionArgs('pacing action=set_strand', args, ['chapter', 'strand']);
+        const r = setChapterStrand(dir, args.chapter, args.strand);
+        return `第 ${r.chapter} 章线别：${r.old ?? '未设'} → ${r.strand}（已同步提交记录、索引与三线状态）\n\n${bookLine(config, id, dir)}`;
+      }
+      if (action !== 'report') throw new Error(`未知的 action：${action}。可用：report / set_strand`);
       const report = analyzePacing(dir, args);
       return `${renderPacingMarkdown(report)}\n\n${bookLine(config, id, dir)}`;
     },
@@ -873,23 +1027,29 @@ export const TOOL_DEFS = [
     '机器态体检与重建：action=check（默认）把提交链完整重放一遍，逐项对账状态卡/索引/伏笔台账/'
       + '正文文件/摘要文件，并扫出骨架里未填的占位符；action=rebuild 从提交链重放重建机器态'
       + '（重建前自动备份到 .webnovel/trash/，记忆与审查记录不受影响）；'
-      + 'action=reconcile 把「提交链之外人工维护的数据」登记成迁移基线（老书升级用，不删数据）。'
+      + 'action=reconcile 把「提交链之外人工维护的数据」登记成迁移基线（老书升级用，不删数据）；'
+      + 'action=prune 清理同章重复正文（默认只预览，confirm=true 才移动到 .webnovel/trash/）；'
+      + 'action=scan 全书机检（字数分布/段内重复/跨章重复/禁词/标点/引号/空行/长句）。'
       + '提交链是唯一事实来源——怀疑「系统记的」和「实际写过的」对不上时用。'
-      + '当用户说「记的怎么对不上 / 状态好像不对 / 帮我校验一下记录 / 数据是不是坏了 / 老书升级对账」时使用。'
-      + '注意：检查大纲/正文内容的质量用 webnovel_review，这个工具只管机器态账目。',
+      + '当用户说「记的怎么对不上 / 状态好像不对 / 帮我校验一下记录 / 数据是不是坏了 / 老书升级对账 / 同章太多文件 / 全书扫一遍」时使用。'
+      + '注意：检查大纲/正文内容的质量用 webnovel_review，这个工具只管机器态账目与全书机械指标。',
     {
       action: {
         type: 'string',
-        enum: ['check', 'rebuild', 'reconcile'],
-        description: 'check=只读体检（默认）/ rebuild=重放重建机器态（写操作，有备份，需 confirm=true 才会执行）/ reconcile=把当前人工维护的机器态登记为迁移基线（写操作，有备份，需 confirm=true；只修正文路径/字数/进度这类客观引用，不掩盖缺章多账）。',
+        enum: ['check', 'rebuild', 'reconcile', 'prune', 'scan'],
+        description: 'check=只读体检（默认）/ rebuild=重放重建机器态（写操作，有备份，需 confirm=true）/ reconcile=把当前人工维护的机器态登记为迁移基线（写操作，有备份，需 confirm=true；只修正文路径/字数/进度这类客观引用，不掩盖缺章多账）/ prune=同章重复正文清理（默认 dry-run，confirm=true 才移动）/ scan=全书机检（只读）。',
       },
       confirm: {
         type: 'boolean',
-        description: '写操作（rebuild / reconcile）的确认门：必须显式传 true 才会执行（防误触）。check 不需要。',
+        description: '写操作（rebuild / reconcile / prune）的确认门：必须显式传 true 才会执行（防误触）。check / scan 不需要。',
       },
       reason: {
         type: 'string',
         description: '仅 reconcile：登记迁移基线的原因（写进基线文件，便于以后回查，如「手工补了 18-19 章人物备注与 4 条专名」）。',
+      },
+      chapters: {
+        type: 'string',
+        description: '仅 prune / scan：限定章号范围，例如 "1-14,247,280"；缺省=全书。',
       },
     },
     [],
@@ -908,7 +1068,28 @@ export const TOOL_DEFS = [
         const result = await doctorReconcile(dir, { confirm: args.confirm === true, reason: args.reason });
         return [...result.lines, '', bookLine(config, id, dir)].join('\n');
       }
-      throw new Error(`未知的 action：${action}。可用：check / rebuild / reconcile`);
+      if (action === 'prune') {
+        const chapters = parseChapterSpec(args.chapters);
+        const result = pruneDuplicateTexts(dir, { confirm: args.confirm === true, chapters });
+        const lines = [result.dryRun
+          ? `同章重复正文清理预览（未移动任何文件）：${result.chapters.length} 章需要清理`
+          : `同章重复正文清理完成：移动 ${result.movedCount} 个文件到 ${result.trashDir}`];
+        for (const row of result.chapters) {
+          lines.push('', `第 ${row.chapter} 章：保留 ${row.keep.name}（${row.keep.mtime}，${row.keep.bytes} 字节）`);
+          for (const item of row.move) lines.push(`  - 移走 ${item.name}（${item.mtime}，${item.bytes} 字节）`);
+          if (row.indexWillUpdate) lines.push(`  - 索引 file 将改指 ${row.keep.name}`);
+        }
+        if (result.dryRun) lines.push('', '确认无误后，用同样的 chapters 再调一次并显式传 confirm=true 才会移动。');
+        else if (result.indexUpdated?.length) lines.push('', `已同步索引：第 ${result.indexUpdated.join('、')} 章`);
+        lines.push('', bookLine(config, id, dir));
+        return lines.join('\n');
+      }
+      if (action === 'scan') {
+        const range = parseChapterSpec(args.chapters);
+        const result = scanBook(dir, { range });
+        return `${renderScanMarkdown(result)}\n\n${bookLine(config, id, dir)}`;
+      }
+      throw new Error(`未知的 action：${action}。可用：check / rebuild / reconcile / prune / scan`);
     },
   ),
 

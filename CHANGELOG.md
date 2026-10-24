@@ -1,5 +1,46 @@
 # 变更记录
 
+## [1.9.0] - 2026-10-24
+
+### 新增
+
+- **导出与批量正文**：`webnovel_outline`
+  - `action=export format=txt|md|json range="1-300"`：一次导出全文，JSON 带 chapter/title/file/mtime/words/text；
+  - `action=replace_all find=.. replace=.. range=.. dry_run=true`：全库字面量替换，默认只预览；
+  - `action=read scope=text chapters="1-14,247,280"`：区间/逗号混读，每章带来源文件与 mtime。
+- **单章版本历史**：每次 `write_text` 覆盖前把旧稿存入 `.webnovel/history/第NNNN章/`（最多 5 版）；
+  `action=history chapter=N` 列表、`action=read scope=text chapter=N version=K` 读旧版、
+  `action=rollback chapter=N version=K` 回滚（回滚前当前稿也会入历史）。
+- **同章重复文件清理**：`webnovel_doctor action=prune`。默认 dry-run 列出章号/文件名/mtime/保留项；
+  `confirm=true` 才把非保留文件移入 `.webnovel/trash/正文-prune-<时间戳>/`（只移动、不删除），
+  并把索引 `file` 指向保留文件。保留规则与 `read` 解析器一致（mtime 最新）。
+- **全书机检**：`webnovel_doctor action=scan` 一次返回字数分布（中位/最低）、段内 6 字重复、
+  跨章重复句、15.5 禁词与句式超限、拉丁字母、半角标点、直引号/引号配对、连续空行、超 40 字句，
+  全部带章号与原文片段。
+- **历史章补录**：`webnovel_commit backfill=true` 把历史修正模式下被忽略的 deltas 写入
+  `.webnovel/backfills.json` 补录区（只补事实、不参与状态重放）；`webnovel_query kind=backfill` 查询。
+- **线别补登**：`webnovel_pacing action=set_strand chapter=N strand=xxx`，同步提交记录/索引/三线状态，
+  doctor 仍可对账。
+
+### 变更
+
+- **正文写入规范文件名**：同一章改标题时不再另建文件，而是覆盖后重命名为 `第NNNN章-标题.md`；
+  返回真实落盘路径、mtime、历史版本与标题撞车结果；写后逐字回读校验（1.8.2 起）。
+- **提交字段语义定死**：不传=保留、空串/null=清空、传值=更新。重提最新章只改一个字，
+  不会再抹掉没传的 `summary / hook / ending / strand`；回执 `fields` 逐字段标注
+  `kept / updated / cleared / empty`。
+- **状态完本判定**：进度指针或已提交章数达到目标章数时，`webnovel_status` 显示「已完本」，
+  不再把 300 章完本的书显示成「下一章 724」。
+- **read 正文带来源**：`scope=text` 返回头部标注取自哪个文件、mtime，以及同章旧文件数量。
+- **参数报错**：`webnovel_outline` 缺参时一次列出该 action 的必填/可选参数，不再只回一句「需要 text」。
+- **文档**：README / docs/USAGE 补充批量操作、补录语义、并发建议（无硬上限，建议 ≤6 路）。
+
+### 校验（只告警，不阻塞）
+
+- 摘要长度建议 100–400 字，超范围告警。
+- 摘要混入内部术语（quest/force/paid 等）或英文词时告警。
+- 章节标题全库唯一性检查（`write_text` 与 `commit` 都报撞车章号）。
+
 ## [1.8.2] - 2026-10-24
 
 ### 修复

@@ -246,6 +246,36 @@ A：不需要。设定集是真源，Agent 每次都会重新读。只有**事�
 
 ---
 
+## 7.5 批量操作与提交语义（1.9.0）
+
+**提交字段语义（定死）**：不传 = 保留原值；传空串 / `null` = 清空；传值 = 更新。
+回执里的 `fields` 会逐字段标注 `kept / updated / cleared / empty`。重提最新章只改一个字，
+不会再把你没传的 `summary / hook / ending` 抹掉。
+
+**历史章补录**：旧章重提仍走 `force=true` 的历史修正模式（deltas 不参与状态重放）。
+只想补事实时再加 `backfill=true`，deltas 会进 `.webnovel/backfills.json` 补录区；
+线别用 `webnovel_pacing action=set_strand chapter=N strand=xxx` 单独补。
+查询补录：`webnovel_query kind=backfill`。
+
+**批量能力**：
+
+- 导出全文：`webnovel_outline action=export format=txt|md|json range="1-300"`
+- 区间读：`webnovel_outline action=read scope=text chapters="1-14,247,280"`
+  （返回每章来源文件与 mtime；单章读也会带来源头）
+- 批量替换：`webnovel_outline action=replace_all find="旧词" replace="新词" range="1-300"`
+  默认 `dry_run=true` 只报逐章命中数；确认后显式传 `dry_run=false`
+- 全书机检：`webnovel_doctor action=scan`（字数分布、段内 6 字重复、跨章重复句、
+  15.5 禁词、拉丁/半角/直引号/引号配对、连续空行、超 40 字句）
+- 同章多文件清理：`webnovel_doctor action=prune` 先看预览，`confirm=true` 才把非保留文件
+  移进 `.webnovel/trash/`（只移动、不删除；保留项与 `read` 解析器一致，并同步索引）
+- 单章历史：`webnovel_outline action=history chapter=N`；读某版 `action=read scope=text chapter=N version=K`；
+  回滚 `action=rollback chapter=N version=K`（覆盖前自动留一版，每章最多 5 版）
+
+**并发**：服务端不设硬上限，实测 6 路并发回拉 300 章稳定；建议批量回拉 ≤6 路。
+写操作原子 + 项目锁，同一章并发提交不会写坏；客户端超时用连接器 `timeout` 控制。
+
+---
+
 ## 附录：工具与技能的对应关系
 
 | 你想做的事 | Agent 会用的工具 | 对应技能 |

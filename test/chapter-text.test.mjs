@@ -57,7 +57,7 @@ test('改标题再写同一章：覆盖原文件，读回是新文', () => {
 
   // 「安」在码点上排在「最」前面：旧实现的 readdir 首个命中会一直读到旧文。
   const second = writeChapterText(root, 12, '最长的夜', newText);
-  assert.equal(second.name, first.name, '同章写入必须复用已有文件，不能按新标题另建');
+  assert.equal(second.name, chapterFileName(12, '最长的夜'), '改标题应重命名为规范文件名，而不是另建一份');
   assert.equal(second.duplicates.length, 0);
 
   const files = listChapterTextFiles(root, 12);
@@ -92,7 +92,7 @@ test('历史重复文件上再写：覆盖最新那份，旧文件保留并告�
 
   const third = '# 第十二章 第三稿\n\n第三稿正文\n';
   const r = writeChapterText(root, 12, '第三稿', third);
-  assert.equal(r.name, midName, '应覆盖 mtime 最新的那一份，不再新增');
+  assert.equal(r.name, chapterFileName(12, '第三稿'), '应覆盖最新一份并重命名为新标题');
   assert.deepEqual(r.duplicates, [oldName]);
   assert.equal(readChapterText(root, 12).text.trim(), third.trim());
   assert.equal(listChapterTextFiles(root, 12).length, 2, '旧文件保留，由作者决定是否归档');
