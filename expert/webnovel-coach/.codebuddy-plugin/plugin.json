@@ -1,6 +1,6 @@
 {
   "name": "webnovel-coach",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Long-form web-novel writing partner: assembles a writing brief before drafting, commits fact deltas after each chapter, and keeps foreshadowing/timeline/setting consistency on disk via MCP. Supports unattended daily serial writing.",
   "author": {
     "name": "webnovel-mcp contributors"

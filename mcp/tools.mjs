@@ -605,7 +605,7 @@ export const TOOL_DEFS = [
           : '';
         const historyNote = r.history?.saved ? `；旧稿已存历史 ${r.history.name}` : '';
         const titleNote = r.titleCollisions?.length
-          ? `\n\n⚠ 标题「${args.title ?? ''}」与第 ${r.titleCollisions.map((c) => c.chapter).join('、')} 章重复——建议改成唯一标题。`
+          ? `\n\n⚠ 标题「${r.title || args.title || ''}」与第 ${r.titleCollisions.map((c) => c.chapter).join('、')} 章重复——建议改成唯一标题。`
           : '';
         return `已保存正文：${r.path}（${countWords(content)} 字，已逐字回读校验；mtime ${r.mtime}${historyNote}）${dupNote}${titleNote}\n\n完稿流程：先 webnovel_review 自审（有 🔴 必须改），再用 webnovel_commit 提交。`;
       }

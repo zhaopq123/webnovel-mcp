@@ -86,6 +86,13 @@ test('批量替换：默认 dry-run 不改盘，执行后逐章回读', async ()
   assert.match(readChapterText(root, 1).text, /新标题一/);
   assert.match(readChapterText(root, 2).text, /新标题二/);
   assert.equal(listVersions(root, 1).length, 1, '覆盖前应存一版历史');
+
+  // 整章被 find 命中且 replace 为空：拒绝，避免一键清空正文
+  const whole = readChapterText(root, 1).text;
+  assert.throws(
+    () => replaceAllInBook(root, { find: whole, replace: '', range: [1], dryRun: false }),
+    /替换后正文会变空/,
+  );
 });
 
 test('版本历史：覆盖存旧稿、最多 5 版、可读可回滚', () => {
