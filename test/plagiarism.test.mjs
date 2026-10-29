@@ -164,9 +164,12 @@ async function startMock(mode) {
         const query = body.params?.arguments?.query ?? '';
         const results = mode === 'hit'
           ? [{ title: '模拟名作', url: 'https://example.com/mock', snippet: `前文后文${query}前文后文` }]
-          : mode === 'miss'
-            ? [{ title: '无关页面', url: 'https://example.com/other', snippet: '这里没有你要找的那句话' }]
-            : [];
+          : mode === 'echo'
+            // 搜索站回显：标题＝查询串＋站名后缀，URL＝该站自己的搜索页
+            ? [{ title: `${query}-短视频大全-高清在线观看`, url: `https://tv.example.com/s?q=${encodeURIComponent(query)}`, snippet: '' }]
+            : mode === 'miss'
+              ? [{ title: '无关页面', url: 'https://example.com/other', snippet: '这里没有你要找的那句话' }]
+              : [];
         const payload = { query, results, meta: { coverage: 1 } };
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({
@@ -226,6 +229,35 @@ test('查重 · mock 命中 → 🔴 命中项带连续相同片段', async () =
     assert.ok(methods.includes('notifications/initialized'));
     assert.ok(methods.includes('tools/call'));
     assert.equal(mock.requests.find((r) => r.method === 'tools/call').params.name, 'web_search');
+  } finally {
+    await mock.close();
+  }
+});
+
+test('查重 · 多句只握手一次（ch86 逐句握手把 12 秒预算吃光的回归锁）', async () => {
+  const mock = await startMock('miss');
+  try {
+    const result = await checkPlagiarism(null, SEARCH_TEXT, { url: mock.url, timeoutMs: 6000 });
+    assert.equal(result.executed, true);
+    const methods = mock.requests.map((r) => r.method);
+    const inits = methods.filter((m) => m === 'initialize').length;
+    const calls = methods.filter((m) => m === 'tools/call').length;
+    assert.ok(calls >= 2, `样本正文应产出 ≥2 条特征句，实得 ${calls}`);
+    assert.equal(inits, 1, `整批应只握手一次，实得 ${inits}`);
+    assert.equal(methods.filter((m) => m === 'notifications/initialized').length, 1);
+  } finally {
+    await mock.close();
+  }
+});
+
+test('查重 · 搜索站回显不算命中（ch6／ch17 假阳性回归锁）', async () => {
+  const mock = await startMock('echo');
+  try {
+    const r = await checkPlagiarism(null, SEARCH_TEXT, { url: mock.url, timeoutMs: 4000 });
+    assert.equal(r.executed, true);
+    assert.ok(r.searched > 0);
+    assert.equal(r.hits.length, 0, '回显型结果（标题＝查询串、URL＝该站搜索页）不得计为命中');
+    assert.equal(r.pending.length, 0, '回显型结果也不得计入待确认');
   } finally {
     await mock.close();
   }

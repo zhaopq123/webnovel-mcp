@@ -355,7 +355,7 @@ books/我的小说/
 **提交前必跑四条**（`.github/workflows/ci.yml` 跑的就是这几条，本地绿了再推）：
 
 ```bash
-npm test                                        # ① 全部单测（自动发现 test/ 下文件；当前 380 个）
+npm test                                        # ① 全部单测（自动发现 test/ 下文件；当前 419 个）
 node scripts/build-prompt-catalog.mjs --check    # ② 提示词原文 ↔ 切片库 ↔ sha 锁三者一致
 node scripts/check-rule-duplication.mjs          # ③ 规则正文全仓库只有一份（跨文件重复=0）
 node scripts/build-dist.mjs --check              # ④ 纯文本分发版与原文逐字符一致
